@@ -28,6 +28,42 @@ class Immobilienscout(Crawler):
                          "496c95154de31a357afa978cdb7f15f0_placeholder_medium.png"
 
 
+    EXPOSE_API_URL = "https://api.mobile.immobilienscout24.de/expose/"
+
+    def get_expose_details(self, expose):
+        """Fetch the availability date, which the search API does not return
+
+        The search endpoint only carries price, size and rooms, so the
+        "Bezugsfrei ab" value has to come from the expose itself. One extra
+        request per listing, hence only worth doing for listings that already
+        passed the filters.
+        """
+        try:
+            response = requests.get(
+                self.EXPOSE_API_URL + str(expose['id']),
+                headers=self.HEADERS, timeout=30)
+            if response.status_code != 200:
+                return expose
+            sections = response.json().get("sections", []) or []
+        except (requests.exceptions.RequestException, ValueError) as error:
+            logger.debug("Could not load ImmoScout expose details: %s", error)
+            return expose
+
+        for section in sections:
+            for attribute in section.get("attributes", []) or []:
+                label = attribute.get("label") or ""
+                if label.startswith("Bezugsfrei ab"):
+                    text = (attribute.get("text") or "").strip()
+                    # ImmoScout mixes "1.10.2026" and "01.10.2026"
+                    date_match = re.match(r'^(\d{1,2})\.(\d{1,2})\.(\d{4})$', text)
+                    if date_match is not None:
+                        expose['from'] = "%02d.%02d.%s" % (
+                            int(date_match[1]), int(date_match[2]), date_match[3])
+                    elif text:
+                        expose['from'] = text
+                    return expose
+        return expose
+
     def get_immoscout_query(self, search_url: str) -> ImmoscoutQuery:
         """Builds an Immoscout query from a web interface URL,
         transforms and validates parameters"""

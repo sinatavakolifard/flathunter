@@ -1,6 +1,5 @@
 """Expose crawler for ImmoWelt"""
 import re
-import datetime
 import hashlib
 
 from bs4 import BeautifulSoup, Tag
@@ -18,34 +17,15 @@ class Immowelt(Crawler):
         self.config = config
 
     def get_expose_details(self, expose):
-        """Loads additional details for an expose by processing the expose detail URL"""
-        soup = self.get_page(expose['url'])
-        date = datetime.datetime.now().strftime("%2d.%2m.%Y")
-        expose['from'] = date
+        """Nothing to fetch - the search results already carry everything
 
-        immo_div = soup.find("app-estate-object-informations")
-        if not isinstance(immo_div, Tag):
-            return expose
-        immo_div = soup.find("div", {"class": "equipment ng-star-inserted"})
-        if not isinstance(immo_div, Tag):
-            return expose
-
-        details = immo_div.find_all("p")
-        for detail in details:
-            if detail.text.strip() == "Bezug":
-                date = detail.findNext("p").text.strip()
-                no_exact_date_given = re.match(
-                    r'.*sofort.*|.*Nach Vereinbarung.*',
-                    date,
-                    re.MULTILINE|re.DOTALL|re.IGNORECASE
-                )
-                if no_exact_date_given:
-                    date = datetime.datetime.now().strftime("%2d.%2m.%Y")
-                break
-        expose['from'] = date
+        Immowelt serves its expose pages behind a DataDome challenge, so
+        requesting them returns 403 and a captcha rather than content. The
+        availability date is parsed from the search result card instead, so
+        there is nothing this needs to add.
+        """
         return expose
 
-    # pylint: disable=too-many-locals
     def extract_data(self, raw_data: BeautifulSoup):
         """Extracts all exposes from a provided Soup object"""
         entries = []
@@ -79,6 +59,14 @@ class Immowelt(Crawler):
                         title = title[:117].rstrip() + "..."
             # Normalise non-breaking spaces so the message renders cleanly
             title = " ".join(title.split())
+
+            # The link title also carries the availability date when the
+            # landlord gave one, e.g. "... 3. Geschoss, frei ab 01.10.2026".
+            # No extra request needed.
+            available_from = ""
+            date_match = re.search(r'frei ab (\d{1,2}\.\d{1,2}\.\d{4})', title)
+            if date_match is not None:
+                available_from = date_match.group(1)
 
             try:
                 price = adv.find(
@@ -138,6 +126,7 @@ class Immowelt(Crawler):
                 'price': price,
                 'size': size,
                 'address': address,
+                'from': available_from,
                 'crawler': self.get_name()
             }
             entries.append(details)

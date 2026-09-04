@@ -106,6 +106,24 @@ reloads and browser changes. To forget everything you have marked:
 choice is carried in the URL as `?source=…`, so it survives paging and can be
 bookmarked. An unrecognised value falls back to showing everything.
 
+**Available from ("frei ab").** Where a landlord states it, the card shows
+`ab <date>`. How it is obtained differs by portal:
+
+| Portal | Source | Extra request? |
+|---|---|---|
+| WG-Gesucht | search results | no |
+| Immowelt | search results (the card's link title) | no |
+| ImmoScout24 | the listing's own page | yes |
+| Kleinanzeigen | the listing's own page | yes |
+
+The last two need `crawl_expose_details: true` in `config.yaml` (on by
+default here). That costs one request per listing, but only for listings that
+already passed your filters, so a normal run adds a handful, not hundreds.
+Set it to `false` to turn it off.
+
+Coverage is limited by what landlords actually fill in — roughly half of
+ImmoScout listings, a third of Immowelt, and very few on Kleinanzeigen.
+
 **Found time.** Each card shows when the crawler first picked the listing up,
 as a relative time. Hover for the exact timestamp. This is when *we* first saw
 it, not when the landlord posted it — the portals do not reliably expose that.
@@ -195,6 +213,16 @@ On branch `privacy-and-local-setup`:
 - `flathunter/web/static/app.js` — the page's behaviour (seen, starring,
   relative last-run time), moved out of an inline script and shared by both
   listing views.
+- `flathunter/crawler/immobilienscout.py` — adds `get_expose_details`, reading
+  "Bezugsfrei ab" from the mobile expose API, since the search endpoint returns
+  only price, size and rooms.
+- `flathunter/crawler/immowelt.py` — parses "frei ab" out of the search result
+  card, and no longer requests expose pages at all: Immowelt serves those
+  behind a DataDome challenge that returns 403.
+- `flathunter/crawler/kleinanzeigen.py` — its "Verfügbar ab" parser anchored
+  the date regex at the start of the text, where the label sits, so it never
+  matched, and it then filled the field with today's date — claiming every flat
+  was available immediately. Fixed, and the bogus fallback removed.
 - `flathunter/hunter.py` — record the run time at the end of a hunt. Only
   `WebHunter` did this, so a command-line run left the web interface reporting
   "Last run: never" forever.

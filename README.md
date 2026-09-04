@@ -59,6 +59,9 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
 - **Source filter** — chips narrowing the list to one portal via `?source=…`,
   with per-portal counts, preserved across pagination.
 - **Found time** — each card shows when the crawler first saw the listing.
+- **Availability dates** — "frei ab" is now read for every portal, not just
+  WG-Gesucht: from search results on Immowelt, and from the listing page on
+  ImmoScout24 and Kleinanzeigen behind the `crawl_expose_details` flag.
 - **Un-seeing** — an `/unmark_seen` endpoint behind the "Seen" badge, so a flat
   can be put back to unseen.
 - **Starred view** — a `/starred` page listing everything starred, with a

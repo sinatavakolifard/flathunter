@@ -43,13 +43,23 @@ class Hunter:
                            .filter_already_seen(self.id_watch) \
                            .build()
 
-        processor_chain = ProcessorChain.builder(self.config) \
-                                        .save_all_exposes(self.id_watch) \
-                                        .apply_filter(filter_set) \
-                                        .resolve_addresses() \
-                                        .calculate_durations() \
-                                        .send_messages() \
-                                        .build()
+        chain = ProcessorChain.builder(self.config) \
+                              .save_all_exposes(self.id_watch) \
+                              .apply_filter(filter_set)
+
+        # Fetching each listing's detail page costs a request, so it happens
+        # after filtering and only when asked for. It is what fills in the
+        # availability date for portals that omit it from search results.
+        if self.config.crawl_expose_details():
+            # Save again afterwards: the first save happens before enrichment,
+            # so without this the availability date is fetched and thrown away.
+            # save_expose is an upsert that preserves the first-seen timestamp.
+            chain = chain.crawl_expose_details().save_all_exposes(self.id_watch)
+
+        processor_chain = chain.resolve_addresses() \
+                               .calculate_durations() \
+                               .send_messages() \
+                               .build()
 
         result = []
         # We need to iterate over this list to force the evaluation of the pipeline

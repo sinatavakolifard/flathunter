@@ -1,6 +1,5 @@
 """Expose crawler for Kleinanzeigen"""
 import re
-import datetime
 
 from bs4 import Tag
 
@@ -27,14 +26,25 @@ class Kleinanzeigen(Crawler):
     }
 
     def get_expose_details(self, expose):
+        """Fetch the availability date from the listing page
+
+        Kleinanzeigen writes it as "Verfügbar ab August 2026" - a month and
+        year, no day - and only when the landlord filled the field in, which
+        is a minority of listings. Costs one request per listing.
+
+        The previous implementation anchored its date regex at the start of
+        the text, where the label sits, so it never matched, and then filled
+        `from` with today's date - claiming every flat was available now.
+        """
         soup = self.get_page(expose['url'])
         for detail in soup.find_all('li', {"class": "addetailslist--detail"}):
-            if re.match(r'Verfügbar ab', detail.text):
-                date_string = re.match(r'(\w+) (\d{4})', detail.text)
-                if date_string is not None:
-                    expose['from'] = "01." + self.MONTHS[date_string[1]] + "." + date_string[2]
-        if 'from' not in expose:
-            expose['from'] = datetime.datetime.now().strftime('%02d.%02m.%Y')
+            text = " ".join(detail.get_text(" ", strip=True).split())
+            if not text.startswith("Verfügbar ab"):
+                continue
+            match = re.search(r'(\w+)\s+(\d{4})', text[len("Verfügbar ab"):])
+            if match is not None and match[1] in self.MONTHS:
+                expose['from'] = f"01.{self.MONTHS[match[1]]}.{match[2]}"
+            break
         return expose
 
     def _parse_result(self, item):

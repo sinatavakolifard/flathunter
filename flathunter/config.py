@@ -397,6 +397,14 @@ Preis: {price}
         """Return the configured maximum price per square meter"""
         return self._get_filter_config("max_price_per_square")
 
+    def crawl_expose_details(self):
+        """True if the crawler should fetch each matching listing's detail page
+
+        Off by default: it costs one extra request per listing. Only listings
+        that already passed the filters are fetched.
+        """
+        return self._read_yaml_path('crawl_expose_details', False)
+
     def immoscout_cookie(self):
         """Return the precalculated immoscout cookie"""
         return self._read_yaml_path('immoscout_cookie', None)
