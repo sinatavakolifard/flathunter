@@ -121,8 +121,25 @@ default here). That costs one request per listing, but only for listings that
 already passed your filters, so a normal run adds a handful, not hundreds.
 Set it to `false` to turn it off.
 
-Coverage is limited by what landlords actually fill in — roughly half of
-ImmoScout listings, a third of Immowelt, and very few on Kleinanzeigen.
+Coverage is limited by what landlords actually fill in — around 70% of
+ImmoScout listings, 57% of Kleinanzeigen, a quarter of Immowelt.
+
+**Important: a normal run does not backfill.** Enrichment happens only for
+listings that pass the filters, and listings already reported are filtered out
+before that. So anything collected before this was enabled will never get a
+date from `./run.sh`. Use the one-off backfill instead:
+
+```bash
+.venv/bin/python backfill_details.py            # fill in what is missing
+.venv/bin/python backfill_details.py --dry-run  # just report what it would do
+```
+
+It skips listings that already have a date, waits between requests, and can be
+re-run safely — options are `--limit N` and `--delay SECONDS`.
+
+**Restarting matters.** Python loads the code at startup, so editing files does
+nothing to an already-running crawler. After pulling changes, stop `./run.sh`
+with Ctrl-C and start it again.
 
 **Found time.** Each card shows when the crawler first picked the listing up,
 as a relative time. Hover for the exact timestamp. This is when *we* first saw
@@ -226,6 +243,8 @@ On branch `privacy-and-local-setup`:
 - `flathunter/hunter.py` — record the run time at the end of a hunt. Only
   `WebHunter` did this, so a command-line run left the web interface reporting
   "Last run: never" forever.
+- `backfill_details.py` — fills in availability dates for listings already
+  stored, which a normal crawl will not revisit.
 - `web.sh` — starts the local web interface.
 - `.gitignore` — added `.venv/`.
 
