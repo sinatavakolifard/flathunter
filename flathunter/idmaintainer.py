@@ -81,11 +81,27 @@ class IdMaintainer:
         happened to finish last rather than by how new a listing is.
         """
         cur = self.get_connection().cursor()
+
+        # Merge rather than replace. Every crawl re-saves everything still
+        # online, and a search result carries less than an enriched record -
+        # notably the availability date, which costs a separate request. A
+        # straight overwrite would discard it on the next pass, so fields the
+        # fresh result does not supply are kept from what is already stored.
+        details = dict(expose)
+        cur.execute('SELECT details FROM exposes WHERE id = ? AND crawler = ?',
+                    (int(expose['id']), expose['crawler']))
+        row = cur.fetchone()
+        if row is not None:
+            stored = json.loads(row[0])
+            for key, value in stored.items():
+                if details.get(key) in (None, '', [], {}):
+                    details[key] = value
+
         cur.execute('INSERT INTO exposes(id, created, crawler, details) \
                      VALUES (?, ?, ?, ?) \
                      ON CONFLICT(id, crawler) DO UPDATE SET details = excluded.details',
                     (int(expose['id']), datetime.datetime.now(),
-                     expose['crawler'], json.dumps(expose)))
+                     expose['crawler'], json.dumps(details)))
         self.get_connection().commit()
 
     def get_exposes_since(self, min_datetime):

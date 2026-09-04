@@ -137,6 +137,9 @@ date from `./run.sh`. Use the one-off backfill instead:
 It skips listings that already have a date, waits between requests, and can be
 re-run safely — options are `--limit N` and `--delay SECONDS`.
 
+Backfilled data survives later crawls: `save_expose` merges rather than
+overwrites, so a fresh search result cannot wipe a field it does not carry.
+
 **Restarting matters.** Python loads the code at startup, so editing files does
 nothing to an already-running crawler. After pulling changes, stop `./run.sh`
 with Ctrl-C and start it again.
