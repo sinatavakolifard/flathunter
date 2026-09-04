@@ -72,10 +72,18 @@ class IdMaintainer:
         self.get_connection().commit()
 
     def save_expose(self, expose):
-        """Saves an expose to a database"""
+        """Saves an expose to a database
+
+        `created` is the moment we first saw the listing and is never
+        rewritten. Every crawl re-saves everything still online, so an
+        INSERT OR REPLACE would stamp the whole table with the time of the
+        latest run, and ordering by it would sort by whichever crawler
+        happened to finish last rather than by how new a listing is.
+        """
         cur = self.get_connection().cursor()
-        cur.execute('INSERT OR REPLACE INTO exposes(id, created, crawler, details) \
-                     VALUES (?, ?, ?, ?)',
+        cur.execute('INSERT INTO exposes(id, created, crawler, details) \
+                     VALUES (?, ?, ?, ?) \
+                     ON CONFLICT(id, crawler) DO UPDATE SET details = excluded.details',
                     (int(expose['id']), datetime.datetime.now(),
                      expose['crawler'], json.dumps(expose)))
         self.get_connection().commit()

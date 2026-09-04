@@ -53,7 +53,9 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
   `/mark_seen` endpoint records opened listings.
 - **`flathunter/idmaintainer.py`** — `get_exposes_page` and `count_exposes` for
   paging, plus `seen_exposes` and `starred_exposes` tables tracking which
-  listings have been opened and shortlisted.
+  listings have been opened and shortlisted. `save_expose` no longer rewrites
+  `created` on every crawl, so it means "first seen" and newest-first ordering
+  actually works.
 - **Starred view** — a `/starred` page listing everything starred, with a
   `/toggle_star` endpoint. Shown unfiltered on purpose, so tightening the
   search later cannot hide a listing you already picked out.

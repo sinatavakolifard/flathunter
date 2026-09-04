@@ -111,6 +111,11 @@ Stars live in the `starred_exposes` table. To clear them all:
 .venv/bin/python -c "import sqlite3; c=sqlite3.connect('processed_ids.db'); c.execute('delete from starred_exposes'); c.commit()"
 ```
 
+**Ordering.** Listings sort newest-first by when they were *first seen*. Each
+crawl re-saves everything still online, so that timestamp is deliberately never
+rewritten — otherwise the whole table would carry the time of the latest run and
+the page would sort by whichever crawler finished last.
+
 **Last checked** shows when the crawler last completed a pass, as a relative
 time that updates in place.
 
