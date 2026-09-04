@@ -5,7 +5,7 @@ import hashlib
 from urllib import parse
 
 from flask import render_template, jsonify, request, session, redirect
-from flask_api import status # type: ignore
+from http import HTTPStatus
 
 from flathunter.web import app, log
 from flathunter.web.util import sanitize_float
@@ -124,7 +124,7 @@ def hunt():
     return jsonify(status="Success",
                    completedAt=str(hunter.get_last_run_time()),
                    body=render_template("exposes.html", exposes=hunter.get_recent_exposes())), \
-           status.HTTP_201_CREATED
+           HTTPStatus.CREATED
 
 @app.route('/logout')
 def logout():
@@ -149,11 +149,11 @@ def login_with_telegram():
 def toggle_notifications():
     """Toggle notifications for the logged-in user"""
     if 'user' not in session:
-        return jsonify(status="Not found", message="Not logged in"), status.HTTP_404_NOT_FOUND
+        return jsonify(status="Not found", message="Not logged in"), HTTPStatus.NOT_FOUND
     notifications_enabled = app.config["HUNTER"].toggle_notification_status(session['user']['id'])
     log.info("Notifications enabled for user toggled to: %s", str(notifications_enabled))
     return jsonify(status="Updated",
-                   notifications_enabled=notifications_enabled), status.HTTP_201_CREATED
+                   notifications_enabled=notifications_enabled), HTTPStatus.CREATED
 
 @app.route('/filter', methods=['POST'])
 def update_filter():

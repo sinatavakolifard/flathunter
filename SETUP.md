@@ -8,7 +8,12 @@ Fork of [flathunters/flathunter](https://github.com/flathunters/flathunter).
 ```bash
 ./run.sh              # normal run, loops forever
 ./run.sh -hb day      # also send a daily "still alive" heartbeat
+./web.sh              # local web interface at http://127.0.0.1:8080
 ```
+
+`run.sh` does the searching and notifying. `web.sh` is a separate, read-only
+view of what `run.sh` has already collected — it does not crawl on its own, so
+run both if you want the page to keep filling up.
 
 Stop with Ctrl-C. Seen listings are remembered in `processed_ids.db`, so you
 only ever get notified once per flat.
@@ -62,6 +67,39 @@ A fresh database treats every current listing as new — expect ~100 messages on
 the first run for a city-wide search. Set the price/size filters in
 `config.yaml` to narrow it.
 
+## Ways to see the listings
+
+Telegram is what is configured, but it is not the only option.
+
+**Telegram** (active) — fastest, works on your phone, no extra process to keep
+running.
+
+**Local web interface** — `./web.sh`, then open http://127.0.0.1:8080. Shows
+the listings already in `processed_ids.db` with price, size, rooms and links.
+Bound to localhost, so nothing is exposed to the network. It reads the
+database; it does not crawl, so keep `./run.sh` going alongside it. The
+Telegram login button on the page is for the hosted multi-user service and is
+not needed locally — the listings render without logging in.
+
+**Apprise** — one notifier covering ~100 services: email (`mailto://`), Signal,
+Discord, ntfy, Matrix, Gotify, macOS desktop notifications, and more. Add
+`apprise` to `notifiers:` and list target URLs under `apprise:`. See
+https://github.com/caronc/apprise for the URL formats.
+
+**Slack / Mattermost** — incoming webhooks, if you use either.
+
+**The database directly** — everything lives in `processed_ids.db`, one JSON
+blob per listing:
+
+```bash
+.venv/bin/python -c "
+import sqlite3, json
+for (d,) in sqlite3.connect('processed_ids.db').execute('select details from exposes'):
+    e = json.loads(d); print(e['price'], '|', e['size'], '|', e['title'][:60])"
+```
+
+Multiple notifiers can be active at once — `notifiers:` is a list.
+
 ## Which portals are active
 
 | Portal | Status | Notes |
@@ -87,6 +125,13 @@ On branch `privacy-and-local-setup`:
 - `flathunter/crawler/kleinanzeigen.py` — rewritten for Kleinanzeigen's current
   Tailwind-based markup (the old `article.aditem` selectors match nothing), and
   switched from Chrome to plain HTTP, since the results page is server-rendered.
+- `flathunter/web/views.py` — dropped the `flask-api` dependency (upstream pins
+  an unpinned git branch of it because the released version is broken with
+  modern Werkzeug) in favour of stdlib `http.HTTPStatus`.
+- `main.py` — the Google Cloud database backend is now imported lazily, so a
+  local run no longer requires `firebase-admin`; and the Werkzeug debugger,
+  which allows arbitrary code execution, is off unless explicitly enabled.
+- `web.sh` — starts the local web interface.
 - `.gitignore` — added `.venv/`.
 
 ## On Kleinanzeigen and APIs
@@ -119,8 +164,9 @@ flathunter can call it directly.
 - **`durations` / Google Maps** — if enabled, every listing's address plus your
   own home/work addresses get sent to Google against your API key. Off by
   default.
-- **`main.py`** — that's the multi-user hosted web service, not the local bot.
-  Don't run or expose it. Use `flathunt.py` (which `run.sh` calls).
+- **`main.py` bound to a public interface** — running it locally is fine (see
+  `./web.sh`, which binds to 127.0.0.1 only), but it is built for a multi-user
+  hosted service with Telegram-login auth. Don't expose it to a network.
 
 ## Staying up to date
 

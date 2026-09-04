@@ -3,7 +3,6 @@ import os
 
 from flathunter.argument_parser import parse
 from flathunter.idmaintainer import IdMaintainer
-from flathunter.googlecloud_idmaintainer import GoogleCloudIdMaintainer
 from flathunter.web_hunter import WebHunter
 from flathunter.config import Config
 from flathunter.logging import configure_logging
@@ -24,7 +23,9 @@ if __name__ == '__main__':
 else:
     # Load the driver manager from local cache (if chrome_driver_install.py has been run
     os.environ['WDM_LOCAL'] = '1'
-    # Use Google Cloud DB if we run on the cloud
+    # Use Google Cloud DB if we run on the cloud. Imported here rather than at
+    # module level so a local run does not need firebase-admin installed.
+    from flathunter.googlecloud_idmaintainer import GoogleCloudIdMaintainer
     id_watch = GoogleCloudIdMaintainer(config)
 
 configure_logging(config)
@@ -51,4 +52,7 @@ if __name__ == '__main__':
     listen = config['website'].get('listen', {})
     host = listen.get('host', '127.0.0.1')
     port = listen.get('port', '8080')
-    app.run(host=host, port=port, debug=True)
+    # debug=True enables the Werkzeug debugger, which allows arbitrary code
+    # execution by anyone who can reach the port. Off unless explicitly asked
+    # for in config under website.listen.debug.
+    app.run(host=host, port=port, debug=listen.get('debug', False))

@@ -38,6 +38,14 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
   carry no heading. Also reparented from `WebdriverCrawler` to `Crawler`: the
   page is fully server-rendered, so plain HTTP works and Chrome is no longer
   launched for it.
+- **`flathunter/web/views.py`** — replaced the `flask-api` import with stdlib
+  `http.HTTPStatus`. The released `flask-api` is broken against modern
+  Werkzeug, which is why upstream's `Pipfile` pins a git branch of it; only the
+  HTTP status constants were ever used.
+- **`main.py`** — import the Google Cloud database backend lazily so a local
+  run does not need `firebase-admin`, and default the Werkzeug debugger to off
+  rather than hardcoding `debug=True`.
+- **`web.sh`** — starts the local web interface on 127.0.0.1:8080.
 - **`.gitignore`** — added `.venv/`.
 
 ### Portal status as of 2026-09-04
