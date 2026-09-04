@@ -46,9 +46,16 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
   run does not need `firebase-admin`, and default the Werkzeug debugger to off
   rather than hardcoding `debug=True`.
 - **`flathunter/web/views.py`** — the index page rendered a hardcoded 9
-  listings, and applied no filters when nobody was logged in. Count is now
-  configurable via `website.recent_exposes_count`, and anonymous sessions fall
-  back to the `filters:` block from the config file.
+  listings with no paging, and applied no filters when nobody was logged in. It
+  now pages through every match (`website.exposes_per_page`, and
+  `website.max_pages` where blank means unlimited and 1 hides the controls),
+  anonymous sessions fall back to the config file's `filters:` block, and a
+  `/mark_seen` endpoint records opened listings.
+- **`flathunter/idmaintainer.py`** — `get_exposes_page` and `count_exposes` for
+  paging, plus a `seen_exposes` table tracking which listings have been opened.
+- **`flathunter/hunter.py`** — record the run time when a hunt finishes. Only
+  `WebHunter` did, so command-line runs left the web interface permanently
+  reporting "Last run: never".
 - **`web.sh`** — starts the local web interface on 127.0.0.1:8080.
 - **`.gitignore`** — added `.venv/`.
 

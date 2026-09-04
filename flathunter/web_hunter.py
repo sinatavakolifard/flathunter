@@ -63,6 +63,22 @@ class WebHunter(Hunter):
         """Load the most recent exposes matching the current filter"""
         return self.id_watch.get_recent_exposes(count, filter_set=filter_set)
 
+    def get_exposes_page(self, offset, limit, filter_set=None):
+        """Load one page of exposes matching the current filter"""
+        return self.id_watch.get_exposes_page(offset, limit, filter_set=filter_set)
+
+    def count_exposes(self, filter_set=None):
+        """Count exposes matching the current filter"""
+        return self.id_watch.count_exposes(filter_set=filter_set)
+
+    def mark_seen(self, expose_id):
+        """Record that the user opened a listing"""
+        self.id_watch.mark_seen(expose_id)
+
+    def get_seen_ids(self):
+        """Ids of listings the user has already opened"""
+        return self.id_watch.get_seen_ids()
+
     def get_exposes_since(self, min_datetime):
         """Return exposes since the provided datetime"""
         return self.id_watch.get_exposes_since(min_datetime)

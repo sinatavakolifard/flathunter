@@ -81,10 +81,28 @@ database; it does not crawl, so keep `./run.sh` going alongside it. The
 Telegram login button on the page is for the hosted multi-user service and is
 not needed locally — the listings render without logging in.
 
-How many listings the page shows is `website.recent_exposes_count` in
-`config.yaml` (set to 50 here; upstream hardcodes 9). The page applies the same
-`filters:` block that the notifier uses, so it shows what you would have been
-notified about.
+The page applies the same `filters:` block the notifier uses, so it shows what
+you would have been notified about. Two settings control paging:
+
+```yaml
+website:
+    exposes_per_page: 30   # listings per page
+    max_pages:             # blank = unlimited; 1 = single page, no controls
+```
+
+`max_pages: 2` (or any number above 1) pages up to that many and no further;
+a page number beyond the cap is clamped rather than erroring.
+
+**Clicking a listing marks it as seen.** Seen cards are dimmed and carry a
+badge, and the state is stored in the `seen_exposes` table, so it survives
+reloads and browser changes. To forget everything you have marked:
+
+```bash
+.venv/bin/python -c "import sqlite3; c=sqlite3.connect('processed_ids.db'); c.execute('delete from seen_exposes'); c.commit()"
+```
+
+**Last checked** shows when the crawler last completed a pass, as a relative
+time that updates in place.
 
 **Apprise** — one notifier covering ~100 services: email (`mailto://`), Signal,
 Discord, ntfy, Matrix, Gotify, macOS desktop notifications, and more. Add
@@ -138,9 +156,15 @@ On branch `privacy-and-local-setup`:
   which allows arbitrary code execution, is off unless explicitly enabled.
 - `flathunter/web/views.py` — the index page showed a hardcoded 9 listings and,
   with nobody logged in, applied no filters at all, so it displayed whatever
-  had been crawled most recently regardless of price or size. The count is now
-  `website.recent_exposes_count`, and an anonymous session falls back to the
-  `filters:` block from `config.yaml`.
+  had been crawled most recently regardless of price or size. It now pages
+  through all matches (`website.exposes_per_page`, `website.max_pages`), and an
+  anonymous session falls back to the `filters:` block from `config.yaml`.
+  Adds a `/mark_seen` endpoint.
+- `flathunter/idmaintainer.py` — adds `get_exposes_page` / `count_exposes` for
+  paging, and a `seen_exposes` table recording which listings you have opened.
+- `flathunter/hunter.py` — record the run time at the end of a hunt. Only
+  `WebHunter` did this, so a command-line run left the web interface reporting
+  "Last run: never" forever.
 - `web.sh` — starts the local web interface.
 - `.gitignore` — added `.venv/`.
 

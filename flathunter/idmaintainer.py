@@ -46,6 +46,8 @@ class IdMaintainer:
                                     crawler STRING, details BLOB, PRIMARY KEY (id, crawler))')
                 cur.execute('CREATE TABLE IF NOT EXISTS users \
                                     (id INTEGER PRIMARY KEY, settings BLOB)')
+                cur.execute('CREATE TABLE IF NOT EXISTS seen_exposes \
+                                    (id INTEGER PRIMARY KEY, seen_at TIMESTAMP)')
                 self.threadlocal.connection.commit()
             except lite.Error as error:
                 logger.error("Error %s:", error.args[0])
@@ -102,6 +104,65 @@ class IdMaintainer:
             if filter_set is None or filter_set.is_interesting_expose(expose):
                 res.append(expose)
         return res
+
+    def get_exposes_page(self, offset, limit, filter_set=None):
+        """Return one page of exposes plus whether any follow
+
+        Filtering happens in Python rather than SQL, since the filters
+        operate on the JSON blob, so we walk the rows in date order and
+        count matches until we have skipped `offset` of them and collected
+        `limit` more.
+        """
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT details FROM exposes ORDER BY created DESC')
+        matched = 0
+        page = []
+        has_more = False
+        while True:
+            row = cur.fetchone()
+            if row is None:
+                break
+            expose = json.loads(row[0])
+            if filter_set is not None and not filter_set.is_interesting_expose(expose):
+                continue
+            matched += 1
+            if matched <= offset:
+                continue
+            if len(page) < limit:
+                page.append(expose)
+            else:
+                # One match beyond the page is enough to know there is a next one
+                has_more = True
+                break
+        return page, has_more
+
+    def count_exposes(self, filter_set=None):
+        """Total number of exposes matching the filter"""
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT details FROM exposes')
+        if filter_set is None:
+            return len(cur.fetchall())
+        return sum(1 for row in cur.fetchall()
+                   if filter_set.is_interesting_expose(json.loads(row[0])))
+
+    def mark_seen(self, expose_id):
+        """Record that the user has opened this listing"""
+        cur = self.get_connection().cursor()
+        cur.execute('INSERT OR REPLACE INTO seen_exposes VALUES (?, ?)',
+                    (int(expose_id), datetime.datetime.now()))
+        self.get_connection().commit()
+
+    def unmark_seen(self, expose_id):
+        """Forget that the user opened this listing"""
+        cur = self.get_connection().cursor()
+        cur.execute('DELETE FROM seen_exposes WHERE id = ?', (int(expose_id),))
+        self.get_connection().commit()
+
+    def get_seen_ids(self):
+        """Set of expose ids the user has opened"""
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT id FROM seen_exposes')
+        return {row[0] for row in cur.fetchall()}
 
     def save_settings_for_user(self, user_id, settings):
         """Saves the user settings to the database"""

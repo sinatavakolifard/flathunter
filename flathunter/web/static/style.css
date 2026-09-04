@@ -340,3 +340,62 @@ a:hover { text-decoration: underline; }
   .page-head h1 { font-size: 22px; }
   .exposes { grid-template-columns: 1fr; }
 }
+
+/* ---------- seen state ---------- */
+
+.seen-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 640;
+  color: #fff;
+  background: rgba(12, 16, 22, .78);
+  backdrop-filter: blur(6px);
+  display: none;
+}
+
+.expose.seen { border-style: dashed; }
+.expose.seen .seen-badge { display: block; }
+.expose.seen .expose-media img { opacity: .38; filter: saturate(.5); }
+.expose.seen .expose-title { color: var(--text-muted); font-weight: 560; }
+.expose.seen .price-tag { opacity: .7; }
+.expose:hover.seen .expose-media img { opacity: .6; }
+
+/* ---------- pagination ---------- */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 0 48px;
+}
+.pager-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 560;
+  box-shadow: var(--shadow);
+}
+a.pager-btn:hover {
+  text-decoration: none;
+  border-color: var(--border-strong);
+  background: var(--bg-sunken);
+}
+.pager-btn.disabled {
+  color: var(--text-faint);
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+}
+.pager-info {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding: 0 6px;
+}

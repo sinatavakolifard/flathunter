@@ -104,14 +104,59 @@ def index():
     domain = app.config.get("DOMAIN", None)
     filter_set = filter_for_user()
     form_values = form_filter_values()
-    count = app.config.get("RECENT_EXPOSES_COUNT", 9)
+
+    per_page = app.config.get("EXPOSES_PER_PAGE", 30)
+    # None means unlimited pages; 1 means show a single page and no controls
+    max_pages = app.config.get("MAX_PAGES", None)
+
+    try:
+        page = int(request.args.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(1, page)
+    if max_pages is not None:
+        page = min(page, max_pages)
+
+    exposes, has_more = hunter.get_exposes_page(
+        (page - 1) * per_page, per_page, filter_set=filter_set)
+
+    has_next = has_more and (max_pages is None or page < max_pages)
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "has_prev": page > 1,
+        "has_next": has_next,
+        "prev_page": page - 1,
+        "next_page": page + 1,
+        # A single-page configuration hides the controls entirely
+        "enabled": max_pages != 1 and (page > 1 or has_next),
+        "max_pages": max_pages,
+    }
+
     return render_template("index.html",
-                           title="Home",
-                           exposes=hunter.get_recent_exposes(count, filter_set=filter_set),
+                           title="Home", exposes=exposes,
+                           seen_ids=hunter.get_seen_ids(),
+                           pagination=pagination,
+                           total=hunter.count_exposes(filter_set=filter_set),
                            last_run=hunter.get_last_run_time(), bot_name=bot_name, domain=domain,
                            login_url=generate_dummy_login_url(),
                            filters=form_values,
                            notifications_enabled=not notifications_muted_for_user())
+
+@app.route('/mark_seen', methods=['POST'])
+def mark_seen():
+    """Record that the user opened a listing"""
+    payload = request.get_json(silent=True) or {}
+    expose_id = payload.get("id")
+    if expose_id is None:
+        return jsonify(status="Bad request", message="No id supplied"), \
+               HTTPStatus.BAD_REQUEST
+    try:
+        app.config["HUNTER"].mark_seen(int(expose_id))
+    except (TypeError, ValueError):
+        return jsonify(status="Bad request", message="Invalid id"), \
+               HTTPStatus.BAD_REQUEST
+    return jsonify(status="Success", id=int(expose_id)), HTTPStatus.CREATED
 
 @app.route('/about')
 def about():

@@ -57,4 +57,9 @@ class Hunter:
             logger.info('New offer: %s', expose['title'])
             result.append(expose)
 
+        # Record the run so the web interface can show when we last checked.
+        # Previously only WebHunter did this, so a command-line run left the
+        # web interface reporting "never".
+        self.id_watch.update_last_run_time()
+
         return result

@@ -11,21 +11,88 @@
 
 <div class="statbar">
   <div class="stat">
-    <span class="k">Showing</span>
-    <span class="v">{{ exposes|length }}</span>
-  </div>
-  {% set sources = exposes|map(attribute='crawler')|select|unique|list %}
-  <div class="stat">
-    <span class="k">Portals</span>
-    <span class="v">{{ sources|length }}</span>
+    <span class="k">Matches</span>
+    <span class="v">{{ total }}</span>
   </div>
   <div class="stat">
-    <span class="k">Last run</span>
-    <span class="v small">{{ last_run if last_run else 'never' }}</span>
+    <span class="k">Seen</span>
+    <span class="v" id="seen-count">{{ seen_ids|length }}</span>
+  </div>
+  {% if pagination.max_pages != 1 %}
+    <div class="stat">
+      <span class="k">Page</span>
+      <span class="v">{{ pagination.page }}</span>
+    </div>
+  {% endif %}
+  <div class="stat">
+    <span class="k">Last checked</span>
+    <span class="v small" id="last-run"
+          {% if last_run %}data-ts="{{ last_run.isoformat() }}"{% endif %}>
+      {{ last_run.strftime('%d %b, %H:%M') if last_run else 'not yet' }}
+    </span>
   </div>
 </div>
 
 {% include "exposes.html" %}
+
+{% if pagination.enabled %}
+  <nav class="pager">
+    {% if pagination.has_prev %}
+      <a class="pager-btn" href="{{ url_for('index', page=pagination.prev_page) }}">← Newer</a>
+    {% else %}
+      <span class="pager-btn disabled">← Newer</span>
+    {% endif %}
+    <span class="pager-info">
+      Page {{ pagination.page }}{% if pagination.max_pages %} of {{ pagination.max_pages }}{% endif %}
+    </span>
+    {% if pagination.has_next %}
+      <a class="pager-btn" href="{{ url_for('index', page=pagination.next_page) }}">Older →</a>
+    {% else %}
+      <span class="pager-btn disabled">Older →</span>
+    {% endif %}
+  </nav>
+{% endif %}
+
+<script>
+// Mark a listing as seen when it is opened. The click still follows the link
+// (target=_blank), so this fires alongside the navigation rather than blocking it.
+document.querySelectorAll('a.expose').forEach(function (card) {
+  card.addEventListener('click', function () {
+    if (card.classList.contains('seen')) { return; }
+    card.classList.add('seen');
+    var counter = document.getElementById('seen-count');
+    if (counter) { counter.textContent = parseInt(counter.textContent, 10) + 1; }
+    fetch('/mark_seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: card.dataset.exposeId }),
+      keepalive: true
+    }).catch(function () {
+      // Reverting keeps the page honest if the write did not land
+      card.classList.remove('seen');
+    });
+  });
+});
+
+// Show the last check as a relative time, refreshed in place
+(function () {
+  var el = document.getElementById('last-run');
+  if (!el || !el.dataset.ts) { return; }
+  var when = new Date(el.dataset.ts);
+  function render() {
+    var secs = Math.round((Date.now() - when.getTime()) / 1000);
+    var text;
+    if (secs < 60) { text = 'just now'; }
+    else if (secs < 3600) { text = Math.floor(secs / 60) + ' min ago'; }
+    else if (secs < 86400) { text = Math.floor(secs / 3600) + ' h ago'; }
+    else { text = Math.floor(secs / 86400) + ' d ago'; }
+    el.textContent = text;
+    el.title = when.toLocaleString();
+  }
+  render();
+  setInterval(render, 30000);
+})();
+</script>
 {% endblock %}
 
 {% block footer_note %}Reading from processed_ids.db{% endblock %}

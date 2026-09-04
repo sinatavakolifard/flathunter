@@ -36,9 +36,13 @@ config.init_searchers()
 hunter = WebHunter(config, id_watch)
 
 app.config["HUNTER"] = hunter
-# How many listings the index page shows (upstream hardcodes 9)
-app.config["RECENT_EXPOSES_COUNT"] = int(
-    (config.get('website', {}) or {}).get('recent_exposes_count', 50))
+_website = config.get('website', {}) or {}
+# How many listings per page (upstream hardcodes 9 with no paging at all)
+app.config["EXPOSES_PER_PAGE"] = int(_website.get('exposes_per_page', 30))
+# Cap on pages: absent or blank means unlimited, 1 means no pagination controls
+_max_pages = _website.get('max_pages', None)
+app.config["MAX_PAGES"] = (
+    max(1, int(_max_pages)) if _max_pages not in (None, '', False) else None)
 if config.has_website_config():
     app.secret_key = config.website_session_key()
     app.config["DOMAIN"] = config.website_domain()

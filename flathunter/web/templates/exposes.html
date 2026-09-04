@@ -1,6 +1,9 @@
 <div class="exposes">
   {% for expose in exposes %}
-    <a class="expose" href="{{ expose['url'] }}" rel="noreferrer noopener" target="_blank">
+    {% set is_seen = expose['id'] in seen_ids %}
+    <a class="expose{% if is_seen %} seen{% endif %}"
+       href="{{ expose['url'] }}" rel="noreferrer noopener" target="_blank"
+       data-expose-id="{{ expose['id'] }}">
       <div class="expose-media">
         <img src="{{ expose['image'] if expose['image'] else url_for('static', filename='placeholder.png') }}"
              alt="" loading="lazy" referrerpolicy="no-referrer">
@@ -9,12 +12,17 @@
         {% endif %}
         {% if expose['price'] %}
           {# Immowelt runs the price and rent type together: "1.170 €Kaltmiete" #}
-          <span class="price-tag">{{ expose['price']|replace('€Kalt', '€ Kalt')|replace('€Warm', '€ Warm') }}</span>
+          {% set price = expose['price']|string|replace('€Kalt', '€ Kalt')|replace('€Warm', '€ Warm') %}
+          {# ImmoScout24 stores a bare number, the others include the symbol #}
+          <span class="price-tag">{{ price if '€' in price else price ~ ' €' }}</span>
         {% endif %}
+        <span class="seen-badge">Seen</span>
       </div>
       <div class="expose-body">
         <h3 class="expose-title">{{ expose['title'] }}</h3>
-        {% if expose['address'] %}
+        {# WG-Gesucht falls back to the listing URL when it has no address,
+           which is noise rather than information - hide those #}
+        {% if expose['address'] and not expose['address'].startswith('http') %}
           <div class="addr">{{ expose['address'] }}</div>
         {% endif %}
         <div class="facts">
@@ -30,7 +38,7 @@
     </a>
   {% else %}
     <div class="empty">
-      <strong>No listings yet</strong>
+      <strong>No listings on this page</strong>
       Start the crawler with <code>./run.sh</code> — matches show up here as they are found.
     </div>
   {% endfor %}
