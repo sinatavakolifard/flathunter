@@ -95,16 +95,9 @@ def notifications_muted_for_user():
         return None
     return app.config["HUNTER"].notifications_muted_for_user(session['user']['id'])
 
-@app.route('/index')
-@app.route('/')
-def index():
-    """Render the index page"""
+def _paged_view(template, title, filter_set, only_ids=None, endpoint='index'):
+    """Render a paged list of exposes, shared by the listings and starred views"""
     hunter = app.config["HUNTER"]
-    bot_name = app.config.get("BOT_NAME", None)
-    domain = app.config.get("DOMAIN", None)
-    filter_set = filter_for_user()
-    form_values = form_filter_values()
-
     per_page = app.config.get("EXPOSES_PER_PAGE", 30)
     # None means unlimited pages; 1 means show a single page and no controls
     max_pages = app.config.get("MAX_PAGES", None)
@@ -118,7 +111,7 @@ def index():
         page = min(page, max_pages)
 
     exposes, has_more = hunter.get_exposes_page(
-        (page - 1) * per_page, per_page, filter_set=filter_set)
+        (page - 1) * per_page, per_page, filter_set=filter_set, only_ids=only_ids)
 
     has_next = has_more and (max_pages is None or page < max_pages)
     pagination = {
@@ -131,17 +124,40 @@ def index():
         # A single-page configuration hides the controls entirely
         "enabled": max_pages != 1 and (page > 1 or has_next),
         "max_pages": max_pages,
+        "endpoint": endpoint,
     }
 
-    return render_template("index.html",
-                           title="Home", exposes=exposes,
+    return render_template(template,
+                           title=title, exposes=exposes,
                            seen_ids=hunter.get_seen_ids(),
+                           starred_ids=hunter.get_starred_ids(),
                            pagination=pagination,
-                           total=hunter.count_exposes(filter_set=filter_set),
-                           last_run=hunter.get_last_run_time(), bot_name=bot_name, domain=domain,
+                           total=hunter.count_exposes(
+                               filter_set=filter_set, only_ids=only_ids),
+                           starred_total=len(hunter.get_starred_ids()),
+                           last_run=hunter.get_last_run_time(),
+                           bot_name=app.config.get("BOT_NAME", None),
+                           domain=app.config.get("DOMAIN", None),
                            login_url=generate_dummy_login_url(),
-                           filters=form_values,
+                           filters=form_filter_values(),
                            notifications_enabled=not notifications_muted_for_user())
+
+@app.route('/index')
+@app.route('/')
+def index():
+    """Render the index page"""
+    return _paged_view("index.html", "Home", filter_for_user(), endpoint='index')
+
+@app.route('/starred')
+def starred():
+    """Render the starred listings
+
+    Deliberately unfiltered: a listing you starred should stay reachable even
+    if you later narrow the price or size filters.
+    """
+    hunter = app.config["HUNTER"]
+    return _paged_view("starred.html", "Starred", None,
+                       only_ids=hunter.get_starred_ids(), endpoint='starred')
 
 @app.route('/mark_seen', methods=['POST'])
 def mark_seen():
@@ -157,6 +173,23 @@ def mark_seen():
         return jsonify(status="Bad request", message="Invalid id"), \
                HTTPStatus.BAD_REQUEST
     return jsonify(status="Success", id=int(expose_id)), HTTPStatus.CREATED
+
+@app.route('/toggle_star', methods=['POST'])
+def toggle_star():
+    """Star or unstar a listing"""
+    payload = request.get_json(silent=True) or {}
+    expose_id = payload.get("id")
+    if expose_id is None:
+        return jsonify(status="Bad request", message="No id supplied"), \
+               HTTPStatus.BAD_REQUEST
+    try:
+        hunter = app.config["HUNTER"]
+        is_starred = hunter.toggle_star(int(expose_id))
+    except (TypeError, ValueError):
+        return jsonify(status="Bad request", message="Invalid id"), \
+               HTTPStatus.BAD_REQUEST
+    return jsonify(status="Success", id=int(expose_id), starred=is_starred,
+                   starred_total=len(hunter.get_starred_ids())), HTTPStatus.CREATED
 
 @app.route('/about')
 def about():

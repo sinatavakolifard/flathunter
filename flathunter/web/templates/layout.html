@@ -11,7 +11,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <meta name="theme-color" content="#0d1117">
   </head>
-  <body>
+  <body data-view="{% block view %}{% endblock %}">
     <header class="site-header">
       <div class="wrap">
         <a class="brand" href="/">
@@ -20,6 +20,7 @@
         </a>
         <nav class="site-nav">
           <a href="/" {% if request.path == '/' or request.path == '/index' %}class="active"{% endif %}>Listings</a>
+          <a href="/starred" {% if request.path == '/starred' %}class="active"{% endif %}>Starred</a>
           <a href="/about" {% if request.path == '/about' %}class="active"{% endif %}>About</a>
           <a href="/resources" {% if request.path == '/resources' %}class="active"{% endif %}>Tenant rights</a>
         </nav>
@@ -39,5 +40,6 @@
         <span>{% block footer_note %}{% endblock %}</span>
       </div>
     </footer>
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </body>
 </html>

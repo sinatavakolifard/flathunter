@@ -1,45 +1,57 @@
 <div class="exposes">
   {% for expose in exposes %}
     {% set is_seen = expose['id'] in seen_ids %}
-    <a class="expose{% if is_seen %} seen{% endif %}"
-       href="{{ expose['url'] }}" rel="noreferrer noopener" target="_blank"
-       data-expose-id="{{ expose['id'] }}">
-      <div class="expose-media">
-        <img src="{{ expose['image'] if expose['image'] else url_for('static', filename='placeholder.png') }}"
-             alt="" loading="lazy" referrerpolicy="no-referrer">
-        {% if expose['crawler'] %}
-          <span class="source">{{ expose['crawler'] }}</span>
-        {% endif %}
-        {% if expose['price'] %}
-          {# Immowelt runs the price and rent type together: "1.170 €Kaltmiete" #}
-          {% set price = expose['price']|string|replace('€Kalt', '€ Kalt')|replace('€Warm', '€ Warm') %}
-          {# ImmoScout24 stores a bare number, the others include the symbol #}
-          <span class="price-tag">{{ price if '€' in price else price ~ ' €' }}</span>
-        {% endif %}
-        <span class="seen-badge">Seen</span>
-      </div>
-      <div class="expose-body">
-        <h3 class="expose-title">{{ expose['title'] }}</h3>
-        {# WG-Gesucht falls back to the listing URL when it has no address,
-           which is noise rather than information - hide those #}
-        {% if expose['address'] and not expose['address'].startswith('http') %}
-          <div class="addr">{{ expose['address'] }}</div>
-        {% endif %}
-        <div class="facts">
-          {% if expose['size'] %}<span class="fact">{{ expose['size'] }}</span>{% endif %}
-          {# Some crawlers give a bare number, others already say "2 Zimmer" #}
-          {% set rooms = expose['rooms']|string|trim %}
-          {% if rooms %}
-            <span class="fact">{{ rooms if 'immer' in rooms or 'Zi' in rooms else rooms ~ ' Zi.' }}</span>
+    {% set is_starred = expose['id'] in starred_ids %}
+    {# The star button sits outside the anchor so clicking it does not open
+       the listing; the wrapper carries the state classes. #}
+    <div class="expose-card{% if is_seen %} seen{% endif %}{% if is_starred %} starred{% endif %}"
+         data-expose-id="{{ expose['id'] }}">
+      <button type="button" class="star-btn"
+              aria-pressed="{{ 'true' if is_starred else 'false' }}"
+              title="{{ 'Remove star' if is_starred else 'Star this listing' }}">
+        <span class="star-on">★</span><span class="star-off">☆</span>
+      </button>
+      <a class="expose" href="{{ expose['url'] }}" rel="noreferrer noopener" target="_blank">
+        <div class="expose-media">
+          <img src="{{ expose['image'] if expose['image'] else url_for('static', filename='placeholder.png') }}"
+               alt="" loading="lazy" referrerpolicy="no-referrer">
+          {% if expose['crawler'] %}
+            <span class="source">{{ expose['crawler'] }}</span>
           {% endif %}
-          {% if expose['from'] %}<span class="fact">ab {{ expose['from'] }}</span>{% endif %}
+          {% if expose['price'] %}
+            {% set price = expose['price']|string|replace('€Kalt', '€ Kalt')|replace('€Warm', '€ Warm') %}
+            {# ImmoScout24 stores a bare number, the others include the symbol #}
+            <span class="price-tag">{{ price if '€' in price else price ~ ' €' }}</span>
+          {% endif %}
+          <span class="seen-badge">Seen</span>
         </div>
-      </div>
-    </a>
+        <div class="expose-body">
+          <h3 class="expose-title">{{ expose['title'] }}</h3>
+          {# WG-Gesucht falls back to the listing URL when it has no address,
+             which is noise rather than information - hide those #}
+          {% if expose['address'] and not expose['address'].startswith('http') %}
+            <div class="addr">{{ expose['address'] }}</div>
+          {% endif %}
+          <div class="facts">
+            {% if expose['size'] %}<span class="fact">{{ expose['size'] }}</span>{% endif %}
+            {# Some crawlers give a bare number, others already say "2 Zimmer" #}
+            {% set rooms = expose['rooms']|string|trim %}
+            {% if rooms %}
+              <span class="fact">{{ rooms if 'immer' in rooms or 'Zi' in rooms else rooms ~ ' Zi.' }}</span>
+            {% endif %}
+            {% if expose['from'] %}<span class="fact">ab {{ expose['from'] }}</span>{% endif %}
+          </div>
+        </div>
+      </a>
+    </div>
   {% else %}
     <div class="empty">
-      <strong>No listings on this page</strong>
-      Start the crawler with <code>./run.sh</code> — matches show up here as they are found.
+      {% if empty_title %}
+        <strong>{{ empty_title }}</strong>{{ empty_body }}
+      {% else %}
+        <strong>No listings on this page</strong>
+        Start the crawler with <code>./run.sh</code> — matches show up here as they are found.
+      {% endif %}
     </div>
   {% endfor %}
 </div>

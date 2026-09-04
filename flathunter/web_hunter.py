@@ -63,13 +63,22 @@ class WebHunter(Hunter):
         """Load the most recent exposes matching the current filter"""
         return self.id_watch.get_recent_exposes(count, filter_set=filter_set)
 
-    def get_exposes_page(self, offset, limit, filter_set=None):
+    def get_exposes_page(self, offset, limit, filter_set=None, only_ids=None):
         """Load one page of exposes matching the current filter"""
-        return self.id_watch.get_exposes_page(offset, limit, filter_set=filter_set)
+        return self.id_watch.get_exposes_page(
+            offset, limit, filter_set=filter_set, only_ids=only_ids)
 
-    def count_exposes(self, filter_set=None):
+    def count_exposes(self, filter_set=None, only_ids=None):
         """Count exposes matching the current filter"""
-        return self.id_watch.count_exposes(filter_set=filter_set)
+        return self.id_watch.count_exposes(filter_set=filter_set, only_ids=only_ids)
+
+    def toggle_star(self, expose_id):
+        """Star or unstar a listing. Returns True if it is now starred"""
+        return self.id_watch.toggle_star(expose_id)
+
+    def get_starred_ids(self):
+        """Ids of listings the user has starred"""
+        return self.id_watch.get_starred_ids()
 
     def mark_seen(self, expose_id):
         """Record that the user opened a listing"""

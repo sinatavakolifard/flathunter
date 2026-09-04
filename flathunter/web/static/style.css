@@ -167,23 +167,30 @@ a:hover { text-decoration: underline; }
   padding-bottom: 40px;
 }
 
-.expose {
-  display: flex;
-  flex-direction: column;
+.expose-card {
+  position: relative;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  color: var(--text);
   box-shadow: var(--shadow);
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  transition: transform .16s ease, box-shadow .16s ease,
+              border-color .16s ease, opacity .2s ease;
 }
-.expose:hover {
-  text-decoration: none;
+.expose-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-lift);
   border-color: var(--border-strong);
 }
+.expose-card.removing { opacity: 0; transform: scale(.96); }
+
+.expose {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: var(--text);
+}
+.expose:hover { text-decoration: none; }
 
 .expose-media {
   position: relative;
@@ -196,7 +203,7 @@ a:hover { text-decoration: underline; }
   object-fit: cover;
   display: block;
 }
-.expose:hover .expose-media img { transform: scale(1.03); }
+.expose-card:hover .expose-media img { transform: scale(1.03); }
 .expose-media img { transition: transform .3s ease; }
 
 .source {
@@ -345,7 +352,7 @@ a:hover { text-decoration: underline; }
 
 .seen-badge {
   position: absolute;
-  top: 10px; right: 10px;
+  top: 10px; right: 50px;
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 11px;
@@ -356,12 +363,12 @@ a:hover { text-decoration: underline; }
   display: none;
 }
 
-.expose.seen { border-style: dashed; }
-.expose.seen .seen-badge { display: block; }
-.expose.seen .expose-media img { opacity: .38; filter: saturate(.5); }
-.expose.seen .expose-title { color: var(--text-muted); font-weight: 560; }
-.expose.seen .price-tag { opacity: .7; }
-.expose:hover.seen .expose-media img { opacity: .6; }
+.expose-card.seen { border-style: dashed; }
+.expose-card.seen .seen-badge { display: block; }
+.expose-card.seen .expose-media img { opacity: .38; filter: saturate(.5); }
+.expose-card.seen .expose-title { color: var(--text-muted); font-weight: 560; }
+.expose-card.seen .price-tag { opacity: .7; }
+.expose-card.seen:hover .expose-media img { opacity: .6; }
 
 /* ---------- pagination ---------- */
 
@@ -399,3 +406,45 @@ a.pager-btn:hover {
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
 }
+
+/* ---------- star ---------- */
+
+.star-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  z-index: 3;
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 50%;
+  background: rgba(12, 16, 22, .74);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease, color .15s ease;
+}
+.star-btn:hover { background: rgba(12, 16, 22, .9); transform: scale(1.09); }
+.star-btn:active { transform: scale(.94); }
+.star-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.star-btn:disabled { cursor: default; }
+
+.star-btn .star-on { display: none; }
+.star-btn .star-off { display: block; }
+.expose-card.starred .star-btn {
+  color: #ffc83d;
+  background: rgba(12, 16, 22, .86);
+  border-color: rgba(255, 200, 61, .55);
+}
+.expose-card.starred .star-btn .star-on { display: block; }
+.expose-card.starred .star-btn .star-off { display: none; }
+
+.expose-card.starred {
+  border-color: rgba(255, 200, 61, .5);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255, 200, 61, .22);
+}
+/* A starred listing stays legible even once opened */
+.expose-card.starred.seen .expose-media img { opacity: .62; }
+.expose-card.starred.seen .expose-title { color: var(--text); font-weight: 600; }

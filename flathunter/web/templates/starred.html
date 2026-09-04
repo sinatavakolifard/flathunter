@@ -1,0 +1,37 @@
+{% extends 'layout.html' %}
+
+{% block title %}Starred{% endblock %}
+{% block view %}starred{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Starred listings</h1>
+  <p>Everything you have starred, newest first. These are shown regardless of the
+     <code>filters:</code> in <code>config.yaml</code>, so narrowing your search
+     later will not hide something you already picked out.</p>
+</div>
+
+<div class="statbar">
+  <div class="stat">
+    <span class="k">Starred</span>
+    <span class="v" id="starred-count">{{ starred_total }}</span>
+  </div>
+  <div class="stat">
+    <span class="k">Seen</span>
+    <span class="v" id="seen-count">{{ seen_ids|length }}</span>
+  </div>
+  {% if pagination.max_pages != 1 and total > pagination.per_page %}
+    <div class="stat">
+      <span class="k">Page</span>
+      <span class="v">{{ pagination.page }}</span>
+    </div>
+  {% endif %}
+</div>
+
+{% set empty_title = 'Nothing starred yet' %}
+{% set empty_body = 'Use the ☆ on any listing to keep it here.' %}
+{% include "exposes.html" %}
+{% include "_pager.html" %}
+{% endblock %}
+
+{% block footer_note %}Reading from processed_ids.db{% endblock %}

@@ -52,7 +52,11 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
   anonymous sessions fall back to the config file's `filters:` block, and a
   `/mark_seen` endpoint records opened listings.
 - **`flathunter/idmaintainer.py`** — `get_exposes_page` and `count_exposes` for
-  paging, plus a `seen_exposes` table tracking which listings have been opened.
+  paging, plus `seen_exposes` and `starred_exposes` tables tracking which
+  listings have been opened and shortlisted.
+- **Starred view** — a `/starred` page listing everything starred, with a
+  `/toggle_star` endpoint. Shown unfiltered on purpose, so tightening the
+  search later cannot hide a listing you already picked out.
 - **`flathunter/hunter.py`** — record the run time when a hunt finishes. Only
   `WebHunter` did, so command-line runs left the web interface permanently
   reporting "Last run: never".

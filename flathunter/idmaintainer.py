@@ -48,6 +48,8 @@ class IdMaintainer:
                                     (id INTEGER PRIMARY KEY, settings BLOB)')
                 cur.execute('CREATE TABLE IF NOT EXISTS seen_exposes \
                                     (id INTEGER PRIMARY KEY, seen_at TIMESTAMP)')
+                cur.execute('CREATE TABLE IF NOT EXISTS starred_exposes \
+                                    (id INTEGER PRIMARY KEY, starred_at TIMESTAMP)')
                 self.threadlocal.connection.commit()
             except lite.Error as error:
                 logger.error("Error %s:", error.args[0])
@@ -105,13 +107,16 @@ class IdMaintainer:
                 res.append(expose)
         return res
 
-    def get_exposes_page(self, offset, limit, filter_set=None):
+    def get_exposes_page(self, offset, limit, filter_set=None, only_ids=None):
         """Return one page of exposes plus whether any follow
 
         Filtering happens in Python rather than SQL, since the filters
         operate on the JSON blob, so we walk the rows in date order and
         count matches until we have skipped `offset` of them and collected
         `limit` more.
+
+        `only_ids` restricts the result to a set of expose ids, which is how
+        the starred view is built.
         """
         cur = self.get_connection().cursor()
         cur.execute('SELECT details FROM exposes ORDER BY created DESC')
@@ -123,6 +128,8 @@ class IdMaintainer:
             if row is None:
                 break
             expose = json.loads(row[0])
+            if only_ids is not None and expose.get('id') not in only_ids:
+                continue
             if filter_set is not None and not filter_set.is_interesting_expose(expose):
                 continue
             matched += 1
@@ -136,14 +143,19 @@ class IdMaintainer:
                 break
         return page, has_more
 
-    def count_exposes(self, filter_set=None):
+    def count_exposes(self, filter_set=None, only_ids=None):
         """Total number of exposes matching the filter"""
         cur = self.get_connection().cursor()
         cur.execute('SELECT details FROM exposes')
-        if filter_set is None:
-            return len(cur.fetchall())
-        return sum(1 for row in cur.fetchall()
-                   if filter_set.is_interesting_expose(json.loads(row[0])))
+        total = 0
+        for row in cur.fetchall():
+            expose = json.loads(row[0])
+            if only_ids is not None and expose.get('id') not in only_ids:
+                continue
+            if filter_set is not None and not filter_set.is_interesting_expose(expose):
+                continue
+            total += 1
+        return total
 
     def mark_seen(self, expose_id):
         """Record that the user has opened this listing"""
@@ -162,6 +174,26 @@ class IdMaintainer:
         """Set of expose ids the user has opened"""
         cur = self.get_connection().cursor()
         cur.execute('SELECT id FROM seen_exposes')
+        return {row[0] for row in cur.fetchall()}
+
+    def toggle_star(self, expose_id):
+        """Star or unstar a listing. Returns True if it is now starred"""
+        expose_id = int(expose_id)
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT id FROM starred_exposes WHERE id = ?', (expose_id,))
+        if cur.fetchone() is not None:
+            cur.execute('DELETE FROM starred_exposes WHERE id = ?', (expose_id,))
+            self.get_connection().commit()
+            return False
+        cur.execute('INSERT INTO starred_exposes VALUES (?, ?)',
+                    (expose_id, datetime.datetime.now()))
+        self.get_connection().commit()
+        return True
+
+    def get_starred_ids(self):
+        """Set of expose ids the user has starred"""
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT id FROM starred_exposes')
         return {row[0] for row in cur.fetchall()}
 
     def save_settings_for_user(self, user_id, settings):

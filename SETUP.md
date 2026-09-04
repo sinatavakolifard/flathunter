@@ -101,6 +101,16 @@ reloads and browser changes. To forget everything you have marked:
 .venv/bin/python -c "import sqlite3; c=sqlite3.connect('processed_ids.db'); c.execute('delete from seen_exposes'); c.commit()"
 ```
 
+**Starring.** The ☆ on each card keeps a listing on the **Starred** page, so
+shortlisted flats live in one place. Clicking the star does not open the
+listing. The Starred page deliberately ignores the `filters:` block: something
+you starred stays reachable even if you later narrow the price or size range.
+Stars live in the `starred_exposes` table. To clear them all:
+
+```bash
+.venv/bin/python -c "import sqlite3; c=sqlite3.connect('processed_ids.db'); c.execute('delete from starred_exposes'); c.commit()"
+```
+
 **Last checked** shows when the crawler last completed a pass, as a relative
 time that updates in place.
 
@@ -161,7 +171,11 @@ On branch `privacy-and-local-setup`:
   anonymous session falls back to the `filters:` block from `config.yaml`.
   Adds a `/mark_seen` endpoint.
 - `flathunter/idmaintainer.py` — adds `get_exposes_page` / `count_exposes` for
-  paging, and a `seen_exposes` table recording which listings you have opened.
+  paging, a `seen_exposes` table recording which listings you have opened, and a
+  `starred_exposes` table for the shortlist.
+- `flathunter/web/static/app.js` — the page's behaviour (seen, starring,
+  relative last-run time), moved out of an inline script and shared by both
+  listing views.
 - `flathunter/hunter.py` — record the run time at the end of a hunt. Only
   `WebHunter` did this, so a command-line run left the web interface reporting
   "Last run: never" forever.
