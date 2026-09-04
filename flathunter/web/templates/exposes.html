@@ -1,11 +1,37 @@
 <div class="exposes">
   {% for expose in exposes %}
-    <a class="expose" href="{{ expose['url'] }}" rel="noreferrer" target="_blank">
-      <p>{{ expose['price'] }}, {{expose['rooms']}} rooms, {{expose['size']}} from {{expose['from']}}</p>
-
-      <img src="{{ expose['image'] if expose['image'] else url_for('static', filename='placeholder.png') }}">
-
-      <h3>{{ expose['title'] }}</h3>
+    <a class="expose" href="{{ expose['url'] }}" rel="noreferrer noopener" target="_blank">
+      <div class="expose-media">
+        <img src="{{ expose['image'] if expose['image'] else url_for('static', filename='placeholder.png') }}"
+             alt="" loading="lazy" referrerpolicy="no-referrer">
+        {% if expose['crawler'] %}
+          <span class="source">{{ expose['crawler'] }}</span>
+        {% endif %}
+        {% if expose['price'] %}
+          {# Immowelt runs the price and rent type together: "1.170 €Kaltmiete" #}
+          <span class="price-tag">{{ expose['price']|replace('€Kalt', '€ Kalt')|replace('€Warm', '€ Warm') }}</span>
+        {% endif %}
+      </div>
+      <div class="expose-body">
+        <h3 class="expose-title">{{ expose['title'] }}</h3>
+        {% if expose['address'] %}
+          <div class="addr">{{ expose['address'] }}</div>
+        {% endif %}
+        <div class="facts">
+          {% if expose['size'] %}<span class="fact">{{ expose['size'] }}</span>{% endif %}
+          {# Some crawlers give a bare number, others already say "2 Zimmer" #}
+          {% set rooms = expose['rooms']|string|trim %}
+          {% if rooms %}
+            <span class="fact">{{ rooms if 'immer' in rooms or 'Zi' in rooms else rooms ~ ' Zi.' }}</span>
+          {% endif %}
+          {% if expose['from'] %}<span class="fact">ab {{ expose['from'] }}</span>{% endif %}
+        </div>
+      </div>
     </a>
+  {% else %}
+    <div class="empty">
+      <strong>No listings yet</strong>
+      Start the crawler with <code>./run.sh</code> — matches show up here as they are found.
+    </div>
   {% endfor %}
 </div>
