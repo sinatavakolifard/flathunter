@@ -81,6 +81,11 @@ database; it does not crawl, so keep `./run.sh` going alongside it. The
 Telegram login button on the page is for the hosted multi-user service and is
 not needed locally — the listings render without logging in.
 
+How many listings the page shows is `website.recent_exposes_count` in
+`config.yaml` (set to 50 here; upstream hardcodes 9). The page applies the same
+`filters:` block that the notifier uses, so it shows what you would have been
+notified about.
+
 **Apprise** — one notifier covering ~100 services: email (`mailto://`), Signal,
 Discord, ntfy, Matrix, Gotify, macOS desktop notifications, and more. Add
 `apprise` to `notifiers:` and list target URLs under `apprise:`. See
@@ -131,6 +136,11 @@ On branch `privacy-and-local-setup`:
 - `main.py` — the Google Cloud database backend is now imported lazily, so a
   local run no longer requires `firebase-admin`; and the Werkzeug debugger,
   which allows arbitrary code execution, is off unless explicitly enabled.
+- `flathunter/web/views.py` — the index page showed a hardcoded 9 listings and,
+  with nobody logged in, applied no filters at all, so it displayed whatever
+  had been crawled most recently regardless of price or size. The count is now
+  `website.recent_exposes_count`, and an anonymous session falls back to the
+  `filters:` block from `config.yaml`.
 - `web.sh` — starts the local web interface.
 - `.gitignore` — added `.venv/`.
 

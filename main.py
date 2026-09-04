@@ -36,6 +36,9 @@ config.init_searchers()
 hunter = WebHunter(config, id_watch)
 
 app.config["HUNTER"] = hunter
+# How many listings the index page shows (upstream hardcodes 9)
+app.config["RECENT_EXPOSES_COUNT"] = int(
+    (config.get('website', {}) or {}).get('recent_exposes_count', 50))
 if config.has_website_config():
     app.secret_key = config.website_session_key()
     app.config["DOMAIN"] = config.website_domain()

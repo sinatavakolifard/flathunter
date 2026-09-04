@@ -69,10 +69,16 @@ def filter_values_for_user():
     return app.config["HUNTER"].get_filters_for_user(session['user']['id'])
 
 def filter_for_user():
-    """Load the filter for the current user"""
-    if filter_values_for_user() is None:
-        return None
-    return FilterBuilder().read_config(YamlConfig({'filters': filter_values_for_user()})).build()
+    """Load the filter for the current user
+
+    Falls back to the filters from config.yaml when nobody is logged in, so a
+    single-user local instance shows the same listings it would notify about,
+    rather than everything ever crawled.
+    """
+    values = filter_values_for_user()
+    if values is None:
+        return FilterBuilder().read_config(app.config["HUNTER"].config).build()
+    return FilterBuilder().read_config(YamlConfig({'filters': values})).build()
 
 def form_filter_values():
     """Extract the filter settings from the submitted form"""
@@ -98,8 +104,10 @@ def index():
     domain = app.config.get("DOMAIN", None)
     filter_set = filter_for_user()
     form_values = form_filter_values()
+    count = app.config.get("RECENT_EXPOSES_COUNT", 9)
     return render_template("index.html",
-                           title="Home", exposes=hunter.get_recent_exposes(filter_set=filter_set),
+                           title="Home",
+                           exposes=hunter.get_recent_exposes(count, filter_set=filter_set),
                            last_run=hunter.get_last_run_time(), bot_name=bot_name, domain=domain,
                            login_url=generate_dummy_login_url(),
                            filters=form_values,

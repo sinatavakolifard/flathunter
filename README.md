@@ -45,6 +45,10 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
 - **`main.py`** — import the Google Cloud database backend lazily so a local
   run does not need `firebase-admin`, and default the Werkzeug debugger to off
   rather than hardcoding `debug=True`.
+- **`flathunter/web/views.py`** — the index page rendered a hardcoded 9
+  listings, and applied no filters when nobody was logged in. Count is now
+  configurable via `website.recent_exposes_count`, and anonymous sessions fall
+  back to the `filters:` block from the config file.
 - **`web.sh`** — starts the local web interface on 127.0.0.1:8080.
 - **`.gitignore`** — added `.venv/`.
 
