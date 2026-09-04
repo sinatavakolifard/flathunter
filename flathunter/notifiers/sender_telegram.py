@@ -79,10 +79,9 @@ class SenderTelegram(Processor, Notifier):
             'chat_id': str(chat_id),
             'text': message,
         }
-        logger.debug(('token:', self.bot_token))
         logger.debug(('chat_id:', chat_id))
         logger.debug(('text:', message))
-        logger.debug("Retrieving URL %s, payload %s", self.__text_message_url, payload)
+        logger.debug("Sending Telegram message, payload %s", payload)
         response = requests.request("POST", self.__text_message_url, data=payload, timeout=30)
         logger.debug("Got response (%i): %s", response.status_code, response.content)
 

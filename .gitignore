@@ -109,3 +109,5 @@ requirements.txt
 
 # OS files
 .DS_Store
+# Local virtualenv
+.venv/

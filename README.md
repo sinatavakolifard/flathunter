@@ -7,6 +7,39 @@
 
 A bot to help people with their rental real-estate search. 🏠🤖
 
+---
+
+## Fork notes
+
+This is a personal fork, configured for an apartment search in **Düsseldorf**.
+Local setup instructions live in **[SETUP.md](SETUP.md)** — start there.
+
+Changes against [flathunters/flathunter](https://github.com/flathunters/flathunter):
+
+- **`flathunter/notifiers/sender_telegram.py`** — dropped two `logger.debug`
+  calls that wrote the raw Telegram bot token, and the API URL containing it,
+  into the logs whenever verbose mode was enabled.
+- **`flathunter/crawler/immowelt.py`** — the listing title was read from a
+  hashed CSS class (`css-1cbj9xw`) that Immowelt has since changed, so every
+  Immowelt result arrived with an empty title. Now prefers the stable
+  `data-testid="cardmfe-description-text-test-id"`, falling back to the old
+  class.
+- **`run.sh`** — runs the bot against the local virtualenv and `config.yaml`.
+- **`get_chat_id.py`** — prints the Telegram chat id(s) that have messaged your
+  bot, for filling in `telegram.receiver_ids`.
+- **`.gitignore`** — added `.venv/`.
+
+### Portal status as of 2026-09-04
+
+| Portal | Status |
+|---|---|
+| ImmoScout24 | working — mobile API, anonymous, no login or captcha |
+| WG-Gesucht | working — plain scraping, no login |
+| Immowelt | working, with the title fix above |
+| Kleinanzeigen | **broken upstream** — its selectors look for `<article class="aditem">`, which the site no longer emits, so it silently returns zero results |
+
+---
+
 ## Flathunter will not solve your problem
 
 The rents are too high - you can't find a flat at a reasonable price in a place you actually want to live. Too many people apply for the good flats - you need to get apply very quickly to have any chance of getting a place. A bot seems like a good solution to this, but it's really just making things worse.

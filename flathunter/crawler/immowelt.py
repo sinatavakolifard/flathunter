@@ -59,10 +59,12 @@ class Immowelt(Crawler):
             return []
         advertisements = core_list.find_all("div", attrs={"class": "css-79elbk"})
         for adv in advertisements:
-            try:
-                title = adv.find("div", {"class": "css-1cbj9xw"}).text
-            except AttributeError:
-                title = ""
+            # Immowelt's hashed CSS class names change on every redeploy, so
+            # prefer the stable data-testid and only fall back to the old class.
+            title_el = adv.find(
+                "div", attrs={"data-testid": "cardmfe-description-text-test-id"}
+            ) or adv.find("div", {"class": "css-1cbj9xw"})
+            title = title_el.text.strip() if title_el is not None else ""
 
             try:
                 price = adv.find(
