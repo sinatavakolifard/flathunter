@@ -69,7 +69,7 @@ the first run for a city-wide search. Set the price/size filters in
 | ImmoScout24 | working | Uses the mobile app API. Anonymous, no login, no captcha. |
 | WG-Gesucht | working | Plain scraping, no login. |
 | Immowelt | working | Patched locally — see below. Note it injects nearby-city results (Duisburg, Neuss, Mettmann) into the Düsseldorf list; no URL parameter suppresses this. |
-| Kleinanzeigen | disabled | Upstream selectors are stale, returns 0 results. |
+| Kleinanzeigen | working | Crawler rewritten locally for the current markup. Plain HTTP, no Chrome. Keep `sleeping_time` at 600s or more — Kleinanzeigen rate-limits by IP. |
 
 ## Local changes to upstream
 
@@ -84,7 +84,29 @@ On branch `privacy-and-local-setup`:
   title now comes from the covering link's `title` attribute
   (`a[data-testid="card-mfe-covering-link-testid"]`), falling back to a
   truncated description and then to the old class.
+- `flathunter/crawler/kleinanzeigen.py` — rewritten for Kleinanzeigen's current
+  Tailwind-based markup (the old `article.aditem` selectors match nothing), and
+  switched from Chrome to plain HTTP, since the results page is server-rendered.
 - `.gitignore` — added `.venv/`.
+
+## On Kleinanzeigen and APIs
+
+Kleinanzeigen has no public search API. Its only official interface is
+OpenImmo *upload* over FTP, for paying business customers — that publishes
+listings, it cannot read them.
+
+There is a private mobile-app API at `api.kleinanzeigen.de/api/ads.json`, but it
+returns `401 Unauthorized`: it is gated behind credentials compiled into the
+app binary. Using those would mean authenticating as the official app with
+secrets not issued to us, so this setup does not go there.
+
+None of that turned out to matter, because the search results page is fully
+server-rendered — plain HTTP returns every listing with title, price, size,
+rooms, address and link. That is what the rewritten crawler uses.
+
+Note the contrast with ImmoScout24: its mobile API at
+`api.mobile.immobilienscout24.de` needs no authentication at all, which is why
+flathunter can call it directly.
 
 ## Settings to leave alone
 

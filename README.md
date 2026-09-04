@@ -29,6 +29,15 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
 - **`run.sh`** — runs the bot against the local virtualenv and `config.yaml`.
 - **`get_chat_id.py`** — prints the Telegram chat id(s) that have messaged your
   bot, for filling in `telegram.receiver_ids`.
+- **`flathunter/crawler/kleinanzeigen.py`** — Kleinanzeigen rebuilt its search
+  results on Tailwind utility classes: `<article class="aditem">`,
+  `.ellipsis` and `.aditem-main--middle--price-shipping--price` no longer
+  exist, so the crawler silently returned zero results. Rewritten against the
+  current markup (result `<li>` → `<article data-adid>`, `<h3>` title, `<p>`
+  price and `"35 m² · 1,5 Zi."` facts line), skipping promoted slots, which
+  carry no heading. Also reparented from `WebdriverCrawler` to `Crawler`: the
+  page is fully server-rendered, so plain HTTP works and Chrome is no longer
+  launched for it.
 - **`.gitignore`** — added `.venv/`.
 
 ### Portal status as of 2026-09-04
@@ -38,7 +47,7 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
 | ImmoScout24 | working — mobile API, anonymous, no login or captcha |
 | WG-Gesucht | working — plain scraping, no login |
 | Immowelt | working, with the title fix above |
-| Kleinanzeigen | **broken upstream** — its selectors look for `<article class="aditem">`, which the site no longer emits, so it silently returns zero results |
+| Kleinanzeigen | working — crawler rewritten here for the current markup, and switched from Chrome to plain HTTP |
 
 ---
 
