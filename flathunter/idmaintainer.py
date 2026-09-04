@@ -115,7 +115,8 @@ class IdMaintainer:
                 res.append(expose)
         return res
 
-    def get_exposes_page(self, offset, limit, filter_set=None, only_ids=None):
+    def get_exposes_page(self, offset, limit, filter_set=None, only_ids=None,
+                         crawlers=None):
         """Return one page of exposes plus whether any follow
 
         Filtering happens in Python rather than SQL, since the filters
@@ -124,10 +125,11 @@ class IdMaintainer:
         `limit` more.
 
         `only_ids` restricts the result to a set of expose ids, which is how
-        the starred view is built.
+        the starred view is built. `crawlers` restricts to a set of source
+        portals.
         """
         cur = self.get_connection().cursor()
-        cur.execute('SELECT details FROM exposes ORDER BY created DESC')
+        cur.execute('SELECT details, created, crawler FROM exposes ORDER BY created DESC')
         matched = 0
         page = []
         has_more = False
@@ -135,7 +137,11 @@ class IdMaintainer:
             row = cur.fetchone()
             if row is None:
                 break
+            if crawlers is not None and row[2] not in crawlers:
+                continue
             expose = json.loads(row[0])
+            # When we first saw it, for display
+            expose['created_at'] = row[1]
             if only_ids is not None and expose.get('id') not in only_ids:
                 continue
             if filter_set is not None and not filter_set.is_interesting_expose(expose):
@@ -151,19 +157,26 @@ class IdMaintainer:
                 break
         return page, has_more
 
-    def count_exposes(self, filter_set=None, only_ids=None):
+    def count_exposes(self, filter_set=None, only_ids=None, crawlers=None):
         """Total number of exposes matching the filter"""
+        return sum(self.count_by_crawler(
+            filter_set=filter_set, only_ids=only_ids, crawlers=crawlers).values())
+
+    def count_by_crawler(self, filter_set=None, only_ids=None, crawlers=None):
+        """Matching expose counts keyed by source portal"""
         cur = self.get_connection().cursor()
-        cur.execute('SELECT details FROM exposes')
-        total = 0
-        for row in cur.fetchall():
-            expose = json.loads(row[0])
+        cur.execute('SELECT details, crawler FROM exposes')
+        counts = {}
+        for details, crawler in cur.fetchall():
+            if crawlers is not None and crawler not in crawlers:
+                continue
+            expose = json.loads(details)
             if only_ids is not None and expose.get('id') not in only_ids:
                 continue
             if filter_set is not None and not filter_set.is_interesting_expose(expose):
                 continue
-            total += 1
-        return total
+            counts[crawler] = counts.get(crawler, 0) + 1
+        return counts
 
     def mark_seen(self, expose_id):
         """Record that the user has opened this listing"""

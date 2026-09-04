@@ -350,21 +350,37 @@ a:hover { text-decoration: underline; }
 
 /* ---------- seen state ---------- */
 
-.seen-badge {
+.card-actions {
   position: absolute;
-  top: 10px; right: 50px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 640;
-  color: #fff;
-  background: rgba(12, 16, 22, .78);
-  backdrop-filter: blur(6px);
-  display: none;
+  top: 8px; right: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
+.seen-btn {
+  display: none;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 999px;
+  background: rgba(12, 16, 22, .78);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 640;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.seen-btn:hover { background: #b4423a; border-color: #d4564c; }
+.seen-btn:hover::after { content: " ✕"; }
+.seen-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.expose-card.seen .seen-btn { display: block; }
+
 .expose-card.seen { border-style: dashed; }
-.expose-card.seen .seen-badge { display: block; }
+
 .expose-card.seen .expose-media img { opacity: .38; filter: saturate(.5); }
 .expose-card.seen .expose-title { color: var(--text-muted); font-weight: 560; }
 .expose-card.seen .price-tag { opacity: .7; }
@@ -410,9 +426,6 @@ a.pager-btn:hover {
 /* ---------- star ---------- */
 
 .star-btn {
-  position: absolute;
-  top: 8px; right: 8px;
-  z-index: 3;
   width: 32px; height: 32px;
   display: grid; place-items: center;
   padding: 0;
@@ -448,3 +461,55 @@ a.pager-btn:hover {
 /* A starred listing stays legible even once opened */
 .expose-card.starred.seen .expose-media img { opacity: .62; }
 .expose-card.starred.seen .expose-title { color: var(--text); font-weight: 600; }
+
+/* ---------- found-at line ---------- */
+
+.found {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- source filter chips ---------- */
+
+.source-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 560;
+}
+.chip:hover {
+  text-decoration: none;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.chip-count {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--text-faint);
+}
+.chip.active .chip-count {
+  background: rgba(255, 255, 255, .22);
+  color: #fff;
+}

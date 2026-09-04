@@ -95,6 +95,14 @@ def notifications_muted_for_user():
         return None
     return app.config["HUNTER"].notifications_muted_for_user(session['user']['id'])
 
+# Portal identifiers as the crawlers report them, with readable labels
+CRAWLER_LABELS = {
+    "Immobilienscout": "ImmoScout24",
+    "Immowelt": "Immowelt",
+    "Kleinanzeigen": "Kleinanzeigen",
+    "WgGesucht": "WG-Gesucht",
+}
+
 def _paged_view(template, title, filter_set, only_ids=None, endpoint='index'):
     """Render a paged list of exposes, shared by the listings and starred views"""
     hunter = app.config["HUNTER"]
@@ -110,8 +118,17 @@ def _paged_view(template, title, filter_set, only_ids=None, endpoint='index'):
     if max_pages is not None:
         page = min(page, max_pages)
 
+    # Source portal filter. An unknown value is ignored rather than showing
+    # an empty page.
+    counts = hunter.count_by_crawler(filter_set=filter_set, only_ids=only_ids)
+    source = request.args.get("source") or None
+    if source not in CRAWLER_LABELS:
+        source = None
+    crawlers = {source} if source else None
+
     exposes, has_more = hunter.get_exposes_page(
-        (page - 1) * per_page, per_page, filter_set=filter_set, only_ids=only_ids)
+        (page - 1) * per_page, per_page, filter_set=filter_set,
+        only_ids=only_ids, crawlers=crawlers)
 
     has_next = has_more and (max_pages is None or page < max_pages)
     pagination = {
@@ -125,15 +142,23 @@ def _paged_view(template, title, filter_set, only_ids=None, endpoint='index'):
         "enabled": max_pages != 1 and (page > 1 or has_next),
         "max_pages": max_pages,
         "endpoint": endpoint,
+        "source": source,
     }
+
+    sources = [{"key": key, "label": label, "count": counts.get(key, 0)}
+               for key, label in CRAWLER_LABELS.items() if counts.get(key, 0)]
 
     return render_template(template,
                            title=title, exposes=exposes,
                            seen_ids=hunter.get_seen_ids(),
                            starred_ids=hunter.get_starred_ids(),
                            pagination=pagination,
+                           sources=sources,
+                           active_source=source,
                            total=hunter.count_exposes(
-                               filter_set=filter_set, only_ids=only_ids),
+                               filter_set=filter_set, only_ids=only_ids,
+                               crawlers=crawlers),
+                           grand_total=sum(counts.values()),
                            starred_total=len(hunter.get_starred_ids()),
                            last_run=hunter.get_last_run_time(),
                            bot_name=app.config.get("BOT_NAME", None),
@@ -168,11 +193,30 @@ def mark_seen():
         return jsonify(status="Bad request", message="No id supplied"), \
                HTTPStatus.BAD_REQUEST
     try:
-        app.config["HUNTER"].mark_seen(int(expose_id))
+        hunter = app.config["HUNTER"]
+        hunter.mark_seen(int(expose_id))
     except (TypeError, ValueError):
         return jsonify(status="Bad request", message="Invalid id"), \
                HTTPStatus.BAD_REQUEST
-    return jsonify(status="Success", id=int(expose_id)), HTTPStatus.CREATED
+    return jsonify(status="Success", id=int(expose_id), seen=True,
+                   seen_total=len(hunter.get_seen_ids())), HTTPStatus.CREATED
+
+@app.route('/unmark_seen', methods=['POST'])
+def unmark_seen():
+    """Forget that the user opened a listing, so it reads as unseen again"""
+    payload = request.get_json(silent=True) or {}
+    expose_id = payload.get("id")
+    if expose_id is None:
+        return jsonify(status="Bad request", message="No id supplied"), \
+               HTTPStatus.BAD_REQUEST
+    try:
+        hunter = app.config["HUNTER"]
+        hunter.unmark_seen(int(expose_id))
+    except (TypeError, ValueError):
+        return jsonify(status="Bad request", message="Invalid id"), \
+               HTTPStatus.BAD_REQUEST
+    return jsonify(status="Success", id=int(expose_id), seen=False,
+                   seen_total=len(hunter.get_seen_ids())), HTTPStatus.CREATED
 
 @app.route('/toggle_star', methods=['POST'])
 def toggle_star():

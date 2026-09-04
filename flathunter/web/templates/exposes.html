@@ -2,15 +2,18 @@
   {% for expose in exposes %}
     {% set is_seen = expose['id'] in seen_ids %}
     {% set is_starred = expose['id'] in starred_ids %}
-    {# The star button sits outside the anchor so clicking it does not open
+    {# The buttons sit outside the anchor so clicking them does not open
        the listing; the wrapper carries the state classes. #}
     <div class="expose-card{% if is_seen %} seen{% endif %}{% if is_starred %} starred{% endif %}"
          data-expose-id="{{ expose['id'] }}">
-      <button type="button" class="star-btn"
-              aria-pressed="{{ 'true' if is_starred else 'false' }}"
-              title="{{ 'Remove star' if is_starred else 'Star this listing' }}">
-        <span class="star-on">★</span><span class="star-off">☆</span>
-      </button>
+      <div class="card-actions">
+        <button type="button" class="seen-btn" title="Mark as unseen">Seen</button>
+        <button type="button" class="star-btn"
+                aria-pressed="{{ 'true' if is_starred else 'false' }}"
+                title="{{ 'Remove star' if is_starred else 'Star this listing' }}">
+          <span class="star-on">★</span><span class="star-off">☆</span>
+        </button>
+      </div>
       <a class="expose" href="{{ expose['url'] }}" rel="noreferrer noopener" target="_blank">
         <div class="expose-media">
           <img src="{{ expose['image'] if expose['image'] else url_for('static', filename='placeholder.png') }}"
@@ -23,7 +26,6 @@
             {# ImmoScout24 stores a bare number, the others include the symbol #}
             <span class="price-tag">{{ price if '€' in price else price ~ ' €' }}</span>
           {% endif %}
-          <span class="seen-badge">Seen</span>
         </div>
         <div class="expose-body">
           <h3 class="expose-title">{{ expose['title'] }}</h3>
@@ -41,6 +43,13 @@
             {% endif %}
             {% if expose['from'] %}<span class="fact">ab {{ expose['from'] }}</span>{% endif %}
           </div>
+          {% if expose['created_at'] %}
+            {# When this listing was first picked up, not when it was posted #}
+            <div class="found" data-ts="{{ expose['created_at'] }}"
+                 title="First seen {{ expose['created_at'][:19] }}">
+              found {{ expose['created_at'][:16] }}
+            </div>
+          {% endif %}
         </div>
       </a>
     </div>

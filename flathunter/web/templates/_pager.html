@@ -1,7 +1,7 @@
 {% if pagination.enabled %}
   <nav class="pager">
     {% if pagination.has_prev %}
-      <a class="pager-btn" href="{{ url_for(pagination.endpoint, page=pagination.prev_page) }}">← Newer</a>
+      <a class="pager-btn" href="{{ url_for(pagination.endpoint, page=pagination.prev_page, source=pagination.source) }}">← Newer</a>
     {% else %}
       <span class="pager-btn disabled">← Newer</span>
     {% endif %}
@@ -9,7 +9,7 @@
       Page {{ pagination.page }}{% if pagination.max_pages %} of {{ pagination.max_pages }}{% endif %}
     </span>
     {% if pagination.has_next %}
-      <a class="pager-btn" href="{{ url_for(pagination.endpoint, page=pagination.next_page) }}">Older →</a>
+      <a class="pager-btn" href="{{ url_for(pagination.endpoint, page=pagination.next_page, source=pagination.source) }}">Older →</a>
     {% else %}
       <span class="pager-btn disabled">Older →</span>
     {% endif %}

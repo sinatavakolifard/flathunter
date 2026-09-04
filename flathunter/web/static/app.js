@@ -29,16 +29,30 @@
       link.addEventListener("click", function () {
         if (card.classList.contains("seen")) { return; }
         card.classList.add("seen");
-        var counter = document.getElementById("seen-count");
-        if (counter) {
-          setCount("seen-count", parseInt(counter.textContent, 10) + 1);
-        }
-        post("/mark_seen", id).catch(function () {
+        post("/mark_seen", id).then(function (data) {
+          setCount("seen-count", data.seen_total);
+        }).catch(function () {
           // Revert so the page never shows a state that was not stored
           card.classList.remove("seen");
-          if (counter) {
-            setCount("seen-count", parseInt(counter.textContent, 10) - 1);
-          }
+        });
+      });
+    }
+
+    // The "Seen" badge is a button: clicking it marks the flat unseen again
+    var seenBtn = card.querySelector(".seen-btn");
+    if (seenBtn) {
+      seenBtn.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (seenBtn.disabled || !card.classList.contains("seen")) { return; }
+        seenBtn.disabled = true;
+        card.classList.remove("seen");
+        post("/unmark_seen", id).then(function (data) {
+          setCount("seen-count", data.seen_total);
+        }).catch(function () {
+          card.classList.add("seen");
+        }).finally(function () {
+          seenBtn.disabled = false;
         });
       });
     }
@@ -75,18 +89,28 @@
     });
   });
 
+  // "found ..." on each card, as a relative time
+  function relative(secs) {
+    if (secs < 60) { return "just now"; }
+    if (secs < 3600) { return Math.floor(secs / 60) + " min ago"; }
+    if (secs < 86400) { return Math.floor(secs / 3600) + " h ago"; }
+    return Math.floor(secs / 86400) + " d ago";
+  }
+
+  document.querySelectorAll(".found[data-ts]").forEach(function (el) {
+    // SQLite stores "YYYY-MM-DD HH:MM:SS.ffffff" with no zone; it is local time
+    var when = new Date(el.dataset.ts.replace(" ", "T"));
+    if (isNaN(when.getTime())) { return; }
+    el.textContent = "found " + relative(Math.round((Date.now() - when.getTime()) / 1000));
+    el.title = "First seen " + when.toLocaleString();
+  });
+
   // Show the last check as a relative time, refreshed in place
   var lastRun = document.getElementById("last-run");
   if (lastRun && lastRun.dataset.ts) {
     var when = new Date(lastRun.dataset.ts);
     var render = function () {
-      var secs = Math.round((Date.now() - when.getTime()) / 1000);
-      var text;
-      if (secs < 60) { text = "just now"; }
-      else if (secs < 3600) { text = Math.floor(secs / 60) + " min ago"; }
-      else if (secs < 86400) { text = Math.floor(secs / 3600) + " h ago"; }
-      else { text = Math.floor(secs / 86400) + " d ago"; }
-      lastRun.textContent = text;
+      lastRun.textContent = relative(Math.round((Date.now() - when.getTime()) / 1000));
       lastRun.title = when.toLocaleString();
     };
     render();

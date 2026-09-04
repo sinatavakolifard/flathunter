@@ -1,0 +1,14 @@
+{% if sources|length > 1 %}
+  <nav class="source-filter">
+    <a class="chip{% if not active_source %} active{% endif %}"
+       href="{{ url_for(pagination.endpoint) }}">
+      All <span class="chip-count">{{ grand_total }}</span>
+    </a>
+    {% for s in sources %}
+      <a class="chip{% if active_source == s.key %} active{% endif %}"
+         href="{{ url_for(pagination.endpoint, source=s.key) }}">
+        {{ s.label }} <span class="chip-count">{{ s.count }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+{% endif %}

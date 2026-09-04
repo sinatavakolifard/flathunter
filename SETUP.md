@@ -101,6 +101,18 @@ reloads and browser changes. To forget everything you have marked:
 .venv/bin/python -c "import sqlite3; c=sqlite3.connect('processed_ids.db'); c.execute('delete from seen_exposes'); c.commit()"
 ```
 
+**Filter by portal.** Chips above the listings narrow to one source
+(ImmoScout24, Immowelt, Kleinanzeigen, WG-Gesucht) with a count on each. The
+choice is carried in the URL as `?source=…`, so it survives paging and can be
+bookmarked. An unrecognised value falls back to showing everything.
+
+**Found time.** Each card shows when the crawler first picked the listing up,
+as a relative time. Hover for the exact timestamp. This is when *we* first saw
+it, not when the landlord posted it — the portals do not reliably expose that.
+
+**Un-seeing.** Opening a listing marks it seen automatically. Click the "Seen"
+badge on a card to mark it unseen again.
+
 **Starring.** The ☆ on each card keeps a listing on the **Starred** page, so
 shortlisted flats live in one place. Clicking the star does not open the
 listing. The Starred page deliberately ignores the `filters:` block: something
@@ -177,7 +189,9 @@ On branch `privacy-and-local-setup`:
   Adds a `/mark_seen` endpoint.
 - `flathunter/idmaintainer.py` — adds `get_exposes_page` / `count_exposes` for
   paging, a `seen_exposes` table recording which listings you have opened, and a
-  `starred_exposes` table for the shortlist.
+  `starred_exposes` table for the shortlist. `get_exposes_page` also returns
+  each listing's `created_at` and can restrict to a set of source portals;
+  `count_by_crawler` backs the filter chip counts.
 - `flathunter/web/static/app.js` — the page's behaviour (seen, starring,
   relative last-run time), moved out of an inline script and shared by both
   listing views.

@@ -56,6 +56,11 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
   listings have been opened and shortlisted. `save_expose` no longer rewrites
   `created` on every crawl, so it means "first seen" and newest-first ordering
   actually works.
+- **Source filter** — chips narrowing the list to one portal via `?source=…`,
+  with per-portal counts, preserved across pagination.
+- **Found time** — each card shows when the crawler first saw the listing.
+- **Un-seeing** — an `/unmark_seen` endpoint behind the "Seen" badge, so a flat
+  can be put back to unseen.
 - **Starred view** — a `/starred` page listing everything starred, with a
   `/toggle_star` endpoint. Shown unfiltered on purpose, so tightening the
   search later cannot hide a listing you already picked out.
