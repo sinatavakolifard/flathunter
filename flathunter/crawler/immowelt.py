@@ -59,12 +59,26 @@ class Immowelt(Crawler):
             return []
         advertisements = core_list.find_all("div", attrs={"class": "css-79elbk"})
         for adv in advertisements:
-            # Immowelt's hashed CSS class names change on every redeploy, so
-            # prefer the stable data-testid and only fall back to the old class.
-            title_el = adv.find(
-                "div", attrs={"data-testid": "cardmfe-description-text-test-id"}
-            ) or adv.find("div", {"class": "css-1cbj9xw"})
-            title = title_el.text.strip() if title_el is not None else ""
+            # Immowelt list cards carry no heading element. The only real
+            # title is the `title` attribute on the covering link, e.g.
+            # "Wohnung zur Miete - Stadtbezirk 2 - 700 EUR - 27 m2".
+            # Fall back to the description body (truncated - Immowelt serves
+            # up to ~500 characters there), then to the old hashed CSS class.
+            title = ""
+            link_el = adv.find(
+                "a", attrs={"data-testid": "card-mfe-covering-link-testid"})
+            if isinstance(link_el, Tag) and link_el.get("title"):
+                title = str(link_el["title"])
+            if not title:
+                desc_el = adv.find(
+                    "div", attrs={"data-testid": "cardmfe-description-text-test-id"}
+                ) or adv.find("div", {"class": "css-1cbj9xw"})
+                if desc_el is not None:
+                    title = desc_el.text.strip()
+                    if len(title) > 120:
+                        title = title[:117].rstrip() + "..."
+            # Normalise non-breaking spaces so the message renders cleanly
+            title = " ".join(title.split())
 
             try:
                 price = adv.find(

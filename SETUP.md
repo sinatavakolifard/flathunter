@@ -68,7 +68,7 @@ the first run for a city-wide search. Set the price/size filters in
 |---|---|---|
 | ImmoScout24 | working | Uses the mobile app API. Anonymous, no login, no captcha. |
 | WG-Gesucht | working | Plain scraping, no login. |
-| Immowelt | working | Patched locally — see below. |
+| Immowelt | working | Patched locally — see below. Note it injects nearby-city results (Duisburg, Neuss, Mettmann) into the Düsseldorf list; no URL parameter suppresses this. |
 | Kleinanzeigen | disabled | Upstream selectors are stale, returns 0 results. |
 
 ## Local changes to upstream
@@ -80,9 +80,10 @@ On branch `privacy-and-local-setup`:
   the logs whenever verbose mode was on.
 - `flathunter/crawler/immowelt.py` — the title selector used a hashed CSS class
   (`css-1cbj9xw`) that Immowelt has since changed, so every listing came
-  through with an empty title. Now prefers the stable
-  `data-testid="cardmfe-description-text-test-id"` and falls back to the old
-  class.
+  through with an empty title. Immowelt's cards have no heading element, so the
+  title now comes from the covering link's `title` attribute
+  (`a[data-testid="card-mfe-covering-link-testid"]`), falling back to a
+  truncated description and then to the old class.
 - `.gitignore` — added `.venv/`.
 
 ## Settings to leave alone

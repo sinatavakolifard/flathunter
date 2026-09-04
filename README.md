@@ -21,9 +21,11 @@ Changes against [flathunters/flathunter](https://github.com/flathunters/flathunt
   into the logs whenever verbose mode was enabled.
 - **`flathunter/crawler/immowelt.py`** — the listing title was read from a
   hashed CSS class (`css-1cbj9xw`) that Immowelt has since changed, so every
-  Immowelt result arrived with an empty title. Now prefers the stable
-  `data-testid="cardmfe-description-text-test-id"`, falling back to the old
-  class.
+  Immowelt result arrived with an empty title. Immowelt's list cards have no
+  heading element at all, so the title now comes from the `title` attribute of
+  the covering link (`a[data-testid="card-mfe-covering-link-testid"]`), e.g.
+  `Wohnung zur Miete - Stadtbezirk 2 - 700 € - 27 m², 3. Geschoss`. Falls back
+  to the description body, truncated to 120 characters, then to the old class.
 - **`run.sh`** — runs the bot against the local virtualenv and `config.yaml`.
 - **`get_chat_id.py`** — prints the Telegram chat id(s) that have messaged your
   bot, for filling in `telegram.receiver_ids`.
