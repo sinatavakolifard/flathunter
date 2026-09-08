@@ -12,8 +12,8 @@ def stats_view():
     hunter = app.config["HUNTER"]
     exposes = json.dumps(
         list(
-            map(lambda e: {'price': sanitize_float(e['price']),
-                           'size': sanitize_float(e['size']),
+            map(lambda e: {'price': sanitize_float(e.get('price')),
+                           'size': sanitize_float(e.get('size')),
                            'created_at': str(e['created_at'])},
                 hunter.get_exposes_since(datetime.datetime.now() - datetime.timedelta(days=28)))))
     return render_template("statistics.html", title="Statistics", exposes=exposes)

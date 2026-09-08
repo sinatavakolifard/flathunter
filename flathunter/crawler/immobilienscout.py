@@ -148,7 +148,14 @@ class Immobilienscout(Crawler):
                 ),
                 'title': expose_details.get("title", ""),
                 'address': expose_details.get("address", {}).get("line", ""),
-                'crawler': self.get_name()
+                'crawler': self.get_name(),
+                # The attributes below are optional in the API response - a
+                # listing without a stated price carries no price attribute at
+                # all - but every other crawler always supplies these keys, so
+                # start from empty strings rather than leaving them out.
+                'price': '',
+                'size': '',
+                'rooms': '',
             }
             flat_attributes = [
                 attribute.get("value") for attribute in expose_details.get("attributes")
