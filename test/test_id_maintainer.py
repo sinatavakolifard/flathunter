@@ -144,3 +144,14 @@ def test_saving_link_does_not_replace_resolved_address():
     id_watch.save_expose(expose)
     saved = id_watch.get_exposes_since(datetime.datetime.now() - datetime.timedelta(days=1))
     assert saved[0]['address'] == 'Neusser Strasse 40219 Düsseldorf'
+
+
+def test_geocodes_are_saved():
+    id_watch = IdMaintainer(":memory:")
+    assert id_watch.get_geocodes() == {}
+    id_watch.save_geocode('area:Bilk|Düsseldorf', 51.2, 6.77, '{"type": "Polygon"}')
+    id_watch.save_geocode('exact:Nowhere 1', None, None)
+    assert id_watch.get_geocodes() == {
+        'area:Bilk|Düsseldorf': (51.2, 6.77, '{"type": "Polygon"}'),
+        'exact:Nowhere 1': (None, None, None),
+    }

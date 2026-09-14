@@ -1,5 +1,6 @@
 """Main module for Web Interface"""
 import collections
+import json
 import hmac
 import hashlib
 from urllib import parse
@@ -7,6 +8,7 @@ from urllib import parse
 from flask import render_template, jsonify, request, session, redirect
 from http import HTTPStatus
 
+from flathunter import geo
 from flathunter.web import app, log
 from flathunter.web.util import sanitize_float
 from flathunter.filter import FilterBuilder
@@ -121,9 +123,7 @@ def _paged_view(template, title, filter_set, only_ids=None, endpoint='index'):
     # Source portal filter. An unknown value is ignored rather than showing
     # an empty page.
     counts = hunter.count_by_crawler(filter_set=filter_set, only_ids=only_ids)
-    source = request.args.get("source") or None
-    if source not in CRAWLER_LABELS:
-        source = None
+    source = _source_filter()
     crawlers = {source} if source else None
 
     exposes, has_more = hunter.get_exposes_page(
@@ -196,6 +196,83 @@ def wunschliste():
     hunter = app.config["HUNTER"]
     return _paged_view("wunschliste.html", "Wunschliste", None,
                        only_ids=hunter.get_loved_ids(), endpoint='wunschliste')
+
+def _source_filter():
+    """The source portal from the query string, or None for all of them"""
+    source = request.args.get("source") or None
+    return source if source in CRAWLER_LABELS else None
+
+@app.route('/map')
+def map_view():
+    """Render the map page; the listings themselves come from /map/data"""
+    hunter = app.config["HUNTER"]
+    counts = hunter.count_by_crawler(filter_set=filter_for_user())
+    source = _source_filter()
+    sources = [{"key": key, "label": label, "count": counts.get(key, 0)}
+               for key, label in CRAWLER_LABELS.items() if counts.get(key, 0)]
+    return render_template("map.html", title="Map",
+                           sources=sources, active_source=source,
+                           grand_total=sum(counts.values()),
+                           pagination={"endpoint": "map_view"})
+
+def _map_listing(expose, seen_ids, starred_ids, loved_ids):
+    """The fields the map page needs for one listing"""
+    fields = ["id", "title", "price", "size", "rooms", "address", "url",
+              "image", "crawler", "from", "created_at"]
+    item = {field: expose.get(field) for field in fields}
+    if isinstance(item["address"], str) and item["address"].startswith("http"):
+        item["address"] = None
+    item["seen"] = expose.get("id") in seen_ids
+    item["starred"] = expose.get("id") in starred_ids
+    item["loved"] = expose.get("id") in loved_ids
+    return item
+
+@app.route('/map/data')
+def map_data():
+    """Listings with their map positions, from the lookup cache only
+
+    Listings with a street address are points; listings that only name a
+    district are grouped under that district's border. Nothing here calls
+    the lookup service - the background worker fills the cache.
+    """
+    hunter = app.config["HUNTER"]
+    source = _source_filter()
+    exposes, _ = hunter.get_exposes_page(
+        0, 10 ** 9, filter_set=filter_for_user(),
+        crawlers={source} if source else None)
+    cache = hunter.get_geocodes()
+    seen_ids = hunter.get_seen_ids()
+    starred_ids = hunter.get_starred_ids()
+    loved_ids = hunter.get_loved_ids()
+
+    exact = []
+    areas = {}
+    pending = 0
+    no_location = 0
+    for expose in exposes:
+        kind, key, entry = geo.resolve(expose, cache)
+        if kind == 'pending':
+            pending += 1
+            continue
+        if kind == 'none':
+            no_location += 1
+            continue
+        item = _map_listing(expose, seen_ids, starred_ids, loved_ids)
+        lat, lon, geojson = entry
+        if kind == 'exact':
+            item["lat"], item["lon"] = lat, lon
+            exact.append(item)
+        else:
+            if key not in areas:
+                district, _, place = key[len('area:'):].partition('|')
+                areas[key] = {"key": key, "district": district, "place": place,
+                              "lat": lat, "lon": lon,
+                              "geojson": json.loads(geojson) if geojson else None,
+                              "listings": []}
+            areas[key]["listings"].append(item)
+
+    return jsonify(exact=exact, areas=list(areas.values()),
+                   pending=pending, no_location=no_location, total=len(exposes))
 
 @app.route('/mark_seen', methods=['POST'])
 def mark_seen():

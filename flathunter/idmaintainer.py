@@ -54,6 +54,12 @@ class IdMaintainer:
                 # be shortlisted for a second look and loved independently.
                 cur.execute('CREATE TABLE IF NOT EXISTS loved_exposes \
                                     (id INTEGER PRIMARY KEY, loved_at TIMESTAMP)')
+                # Map positions, keyed by street query or district (see
+                # flathunter.geo). A NULL lat records a lookup that found
+                # nothing, so it is not repeated.
+                cur.execute('CREATE TABLE IF NOT EXISTS geocodes \
+                                    (query TEXT PRIMARY KEY, lat REAL, lon REAL, \
+                                     geojson TEXT, looked_up_at TIMESTAMP)')
                 self.threadlocal.connection.commit()
             except lite.Error as error:
                 logger.error("Error %s:", error.args[0])
@@ -265,6 +271,19 @@ class IdMaintainer:
         cur = self.get_connection().cursor()
         cur.execute('SELECT id FROM loved_exposes')
         return {row[0] for row in cur.fetchall()}
+
+    def save_geocode(self, query, lat, lon, geojson=None):
+        """Store the map position for a lookup key (lat None = not found)"""
+        cur = self.get_connection().cursor()
+        cur.execute('INSERT OR REPLACE INTO geocodes VALUES (?, ?, ?, ?, ?)',
+                    (query, lat, lon, geojson, datetime.datetime.now()))
+        self.get_connection().commit()
+
+    def get_geocodes(self):
+        """All stored map positions as {key: (lat, lon, geojson)}"""
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT query, lat, lon, geojson FROM geocodes')
+        return {row[0]: (row[1], row[2], row[3]) for row in cur.fetchall()}
 
     def save_settings_for_user(self, user_id, settings):
         """Saves the user settings to the database"""

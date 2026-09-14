@@ -21,8 +21,11 @@
     if (el) { el.textContent = value; }
   }
 
-  document.querySelectorAll(".expose-card").forEach(function (card) {
+  // Wires up one listing card. `onChange(field, isOn)` is told whenever the
+  // seen, starred or loved state is stored, so the map can restyle its pins.
+  function bindCard(card, onChange) {
     var id = card.dataset.exposeId;
+    var changed = onChange || function () {};
 
     // Opening a listing marks it as seen. The click still follows the link.
     var link = card.querySelector("a.expose");
@@ -32,6 +35,7 @@
         card.classList.add("seen");
         post("/mark_seen", id).then(function (data) {
           setCount("seen-count", data.seen_total);
+          changed("seen", true);
         }).catch(function () {
           // Revert so the page never shows a state that was not stored
           card.classList.remove("seen");
@@ -50,6 +54,7 @@
         card.classList.remove("seen");
         post("/unmark_seen", id).then(function (data) {
           setCount("seen-count", data.seen_total);
+          changed("seen", false);
         }).catch(function () {
           card.classList.add("seen");
         }).finally(function () {
@@ -92,6 +97,7 @@
           button.setAttribute("aria-pressed", String(isOn));
           button.title = isOn ? spec.onTitle : spec.offTitle;
           setCount(spec.countId, data[spec.totalField]);
+          changed(spec.field, isOn);
           // On that list's own page, a card just removed no longer belongs
           if (!isOn && document.body.dataset.view === spec.view) {
             card.classList.add("removing");
@@ -105,6 +111,10 @@
         });
       });
     });
+  }
+
+  document.querySelectorAll(".expose-card").forEach(function (card) {
+    bindCard(card);
   });
 
   // "found ..." on each card, as a relative time
@@ -122,6 +132,8 @@
     el.textContent = "found " + relative(Math.round((Date.now() - when.getTime()) / 1000));
     el.title = "First seen " + when.toLocaleString();
   });
+
+  window.Wohnungssuche = { bindCard: bindCard, relative: relative };
 
   // Show the last check as a relative time, refreshed in place
   var lastRun = document.getElementById("last-run");

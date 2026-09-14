@@ -10,6 +10,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <meta name="theme-color" content="#0d1117">
+    {% block head %}{% endblock %}
   </head>
   <body data-view="{% block view %}{% endblock %}">
     <header class="site-header">
@@ -20,7 +21,8 @@
         </a>
         <nav class="site-nav">
           <a href="/" {% if request.path == '/' or request.path == '/index' %}class="active"{% endif %}>Listings</a>
-          <a href="/starred" {% if request.path == '/starred' %}class="active"{% endif %}>Starred</a>
+          <a href="/map" {% if request.path == '/map' %}class="active"{% endif %}>Map</a>
+          <a href="/starred"{% if request.path == '/starred' %}class="active"{% endif %}>Starred</a>
           <a href="/wunschliste" {% if request.path == '/wunschliste' %}class="active"{% endif %}>Wunschliste</a>
           <a href="/about" {% if request.path == '/about' %}class="active"{% endif %}>About</a>
           <a href="/resources" {% if request.path == '/resources' %}class="active"{% endif %}>Tenant rights</a>
@@ -42,5 +44,6 @@
       </div>
     </footer>
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+    {% block scripts %}{% endblock %}
   </body>
 </html>

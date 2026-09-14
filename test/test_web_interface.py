@@ -199,3 +199,36 @@ def test_logout(hunt_client):
     assert 'user' in session
     rv = hunt_client.get('/logout')
     assert 'user' not in session
+
+def test_get_map(hunt_client):
+    rv = hunt_client.get('/map')
+    assert rv.status_code == 200
+    assert b'id="map"' in rv.data
+
+def test_map_data_places_listings(hunt_client):
+    id_watch = app.config['HUNTER'].id_watch
+    id_watch.save_expose({'id': 1, 'crawler': 'Immobilienscout', 'title': 'Street',
+                          'address': 'Bonnerstr. 18b, 40589 Düsseldorf, Holthausen'})
+    id_watch.save_expose({'id': 2, 'crawler': 'Kleinanzeigen', 'title': 'District',
+                          'address': '40599 Benrath'})
+    id_watch.save_expose({'id': 3, 'crawler': 'Kleinanzeigen', 'title': 'Nowhere',
+                          'address': ''})
+    id_watch.save_expose({'id': 4, 'crawler': 'Kleinanzeigen', 'title': 'Not looked up yet',
+                          'address': '40211 Stadtmitte'})
+    id_watch.save_geocode('exact:Bonnerstraße 18b, 40589 Düsseldorf', 51.17, 6.83)
+    id_watch.save_geocode('area:Benrath|Düsseldorf', 51.16, 6.87,
+                          '{"type": "Polygon", "coordinates": []}')
+
+    data = json.loads(hunt_client.get('/map/data').data)
+    assert [l['id'] for l in data['exact']] == [1]
+    assert data['exact'][0]['lat'] == 51.17
+    assert len(data['areas']) == 1
+    assert data['areas'][0]['district'] == 'Benrath'
+    assert data['areas'][0]['geojson']['type'] == 'Polygon'
+    assert [l['id'] for l in data['areas'][0]['listings']] == [2]
+    assert data['no_location'] == 1
+    assert data['pending'] == 1
+
+    data = json.loads(hunt_client.get('/map/data?source=Immobilienscout').data)
+    assert [l['id'] for l in data['exact']] == [1]
+    assert data['areas'] == []

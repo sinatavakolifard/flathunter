@@ -108,6 +108,12 @@ class WebHunter(Hunter):
         """Ids of listings the user has already opened"""
         return self.id_watch.get_seen_ids()
 
+    def get_geocodes(self):
+        """Stored map positions, {key: (lat, lon, geojson)}"""
+        if not hasattr(self.id_watch, 'get_geocodes'):
+            return {}
+        return self.id_watch.get_geocodes()
+
     def get_exposes_since(self, min_datetime):
         """Return exposes since the provided datetime"""
         return self.id_watch.get_exposes_since(min_datetime)

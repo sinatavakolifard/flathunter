@@ -5,6 +5,8 @@ from flathunter.argument_parser import parse
 from flathunter.idmaintainer import IdMaintainer
 from flathunter.web_hunter import WebHunter
 from flathunter.config import Config
+from flathunter.filter import FilterBuilder
+from flathunter.geo import GeocodeWorker
 from flathunter.logging import configure_logging
 
 from flathunter.web import app
@@ -34,6 +36,10 @@ configure_logging(config)
 config.init_searchers()
 
 hunter = WebHunter(config, id_watch)
+
+if __name__ == '__main__' and hasattr(id_watch, 'save_geocode'):
+    # Find map positions for listings in the background (see flathunter.geo)
+    GeocodeWorker(id_watch, filter_set=FilterBuilder().read_config(config).build()).start()
 
 app.config["HUNTER"] = hunter
 _website = config.get('website', {}) or {}

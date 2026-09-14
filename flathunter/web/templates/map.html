@@ -1,0 +1,44 @@
+{% extends 'layout.html' %}
+
+{% block title %}Map{% endblock %}
+{% block view %}map{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='leaflet/leaflet.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-head map-head">
+  <h1>Listings on the map</h1>
+  <p>Move and zoom the map - the list shows what is inside the view. Same filters as the
+     Listings page.</p>
+</div>
+
+{% include "_filters.html" %}
+
+<div class="map-status" id="map-status" hidden></div>
+
+<div class="map-layout">
+  <div class="map-pane">
+    <div id="map" data-source="{{ active_source or '' }}"></div>
+    <div class="map-legend">
+      <span><i class="legend-pin"></i> Exact address</span>
+      <span><i class="legend-area"></i> Only the district is known</span>
+    </div>
+  </div>
+  <aside class="map-side">
+    <div class="map-side-head">
+      <strong id="in-view-count">…</strong>
+      <span id="hidden-note" class="muted"></span>
+    </div>
+    <div id="map-list"></div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='leaflet/leaflet.js') }}" defer></script>
+<script src="{{ url_for('static', filename='map.js') }}" defer></script>
+{% endblock %}
+
+{% block footer_note %}Map data © OpenStreetMap contributors{% endblock %}
