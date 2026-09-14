@@ -574,6 +574,27 @@ body[data-view="map"] main.wrap { max-width: 1680px; }
   font: inherit;
 }
 
+/* Fullscreen map, inside the browser window. Leaflet sets position:
+   relative and the page layout sets a height on the element itself, so
+   both need !important. */
+#map.map-fullscreen {
+  position: fixed !important;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100dvh !important;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+body.map-fullscreen-open { overflow: hidden; }
+
+.map-fullscreen-btn {
+  display: grid !important;
+  place-items: center;
+  color: #333 !important;
+}
+
 .map-legend {
   display: flex;
   flex-wrap: wrap;

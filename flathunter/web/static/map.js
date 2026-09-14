@@ -90,9 +90,62 @@
   fitToWindow();
 
   var map = L.map(mapEl).setView([start.lat, start.lng], start.zoom);
-  window.addEventListener("resize", function () {
+  // After a size change the district borders and the list must follow the
+  // new view; Leaflet only redraws them once the map has moved
+  function resized() {
     fitToWindow();
-    map.invalidateSize();
+    map.invalidateSize({ animate: false });
+    map.fire("moveend");
+  }
+  window.addEventListener("resize", resized);
+
+  // ---------- fullscreen ----------
+
+  var EXPAND_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">' +
+    '<path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+  var SHRINK_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">' +
+    '<path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+  // The map covers the whole browser window, not the screen, so the
+  // browser's tabs and address bar stay visible
+  var fullscreenButton = null;
+
+  function isFullscreen() {
+    return mapEl.classList.contains("map-fullscreen");
+  }
+
+  function setFullscreen(on) {
+    mapEl.classList.toggle("map-fullscreen", on);
+    document.body.classList.toggle("map-fullscreen-open", on);
+    fullscreenButton.innerHTML = on ? SHRINK_ICON : EXPAND_ICON;
+    fullscreenButton.title = on ? "Exit fullscreen (Esc)" : "Fullscreen";
+    fullscreenButton.setAttribute("aria-pressed", String(on));
+    resized();
+  }
+
+  function toggleFullscreen() {
+    setFullscreen(!isFullscreen());
+  }
+
+  var FullscreenControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd: function () {
+      var bar = L.DomUtil.create("div", "leaflet-bar");
+      fullscreenButton = L.DomUtil.create("a", "map-fullscreen-btn", bar);
+      fullscreenButton.href = "#";
+      fullscreenButton.setAttribute("role", "button");
+      L.DomEvent.disableClickPropagation(bar);
+      L.DomEvent.on(fullscreenButton, "click", function (event) {
+        L.DomEvent.preventDefault(event);
+        toggleFullscreen();
+      });
+      return bar;
+    }
+  });
+  map.addControl(new FullscreenControl());
+  setFullscreen(false);
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && isFullscreen()) { setFullscreen(false); }
   });
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -431,8 +484,7 @@
   function setStatusVisible(visible) {
     if (statusEl.hidden !== visible) { return; }
     statusEl.hidden = !visible;
-    fitToWindow();
-    map.invalidateSize();
+    resized();
   }
 
   function load(first) {
