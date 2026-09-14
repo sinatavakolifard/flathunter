@@ -152,6 +152,7 @@ def _paged_view(template, title, filter_set, only_ids=None, endpoint='index'):
                            title=title, exposes=exposes,
                            seen_ids=hunter.get_seen_ids(),
                            starred_ids=hunter.get_starred_ids(),
+                           loved_ids=hunter.get_loved_ids(),
                            pagination=pagination,
                            sources=sources,
                            active_source=source,
@@ -160,6 +161,7 @@ def _paged_view(template, title, filter_set, only_ids=None, endpoint='index'):
                                crawlers=crawlers),
                            grand_total=sum(counts.values()),
                            starred_total=len(hunter.get_starred_ids()),
+                           loved_total=len(hunter.get_loved_ids()),
                            last_run=hunter.get_last_run_time(),
                            bot_name=app.config.get("BOT_NAME", None),
                            domain=app.config.get("DOMAIN", None),
@@ -183,6 +185,17 @@ def starred():
     hunter = app.config["HUNTER"]
     return _paged_view("starred.html", "Starred", None,
                        only_ids=hunter.get_starred_ids(), endpoint='starred')
+
+@app.route('/wunschliste')
+def wunschliste():
+    """Render the Wunschliste - the listings marked with a heart
+
+    Unfiltered for the same reason the starred view is: something you loved
+    should stay reachable even if you narrow the filters afterwards.
+    """
+    hunter = app.config["HUNTER"]
+    return _paged_view("wunschliste.html", "Wunschliste", None,
+                       only_ids=hunter.get_loved_ids(), endpoint='wunschliste')
 
 @app.route('/mark_seen', methods=['POST'])
 def mark_seen():
@@ -234,6 +247,23 @@ def toggle_star():
                HTTPStatus.BAD_REQUEST
     return jsonify(status="Success", id=int(expose_id), starred=is_starred,
                    starred_total=len(hunter.get_starred_ids())), HTTPStatus.CREATED
+
+@app.route('/toggle_loved', methods=['POST'])
+def toggle_loved():
+    """Put a listing on the Wunschliste or take it off"""
+    payload = request.get_json(silent=True) or {}
+    expose_id = payload.get("id")
+    if expose_id is None:
+        return jsonify(status="Bad request", message="No id supplied"), \
+               HTTPStatus.BAD_REQUEST
+    try:
+        hunter = app.config["HUNTER"]
+        is_loved = hunter.toggle_loved(int(expose_id))
+    except (TypeError, ValueError):
+        return jsonify(status="Bad request", message="Invalid id"), \
+               HTTPStatus.BAD_REQUEST
+    return jsonify(status="Success", id=int(expose_id), loved=is_loved,
+                   loved_total=len(hunter.get_loved_ids())), HTTPStatus.CREATED
 
 @app.route('/about')
 def about():

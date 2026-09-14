@@ -2,14 +2,22 @@
   {% for expose in exposes %}
     {% set is_seen = expose['id'] in seen_ids %}
     {% set is_starred = expose['id'] in starred_ids %}
+    {% set is_loved = expose['id'] in loved_ids %}
     {# The buttons sit outside the anchor so clicking them does not open
        the listing; the wrapper carries the state classes. #}
-    <div class="expose-card{% if is_seen %} seen{% endif %}{% if is_starred %} starred{% endif %}"
+    <div class="expose-card{% if is_seen %} seen{% endif %}{% if is_starred %} starred{% endif %}{% if is_loved %} loved{% endif %}"
          data-expose-id="{{ expose['id'] }}">
       <div class="card-actions">
         <button type="button" class="seen-btn" title="Mark as unseen">Seen</button>
+        <button type="button" class="love-btn"
+                aria-pressed="{{ 'true' if is_loved else 'false' }}"
+                aria-label="Wunschliste"
+                title="{{ 'Remove from Wunschliste' if is_loved else 'Add to Wunschliste' }}">
+          <span class="love-on">♥</span><span class="love-off">♡</span>
+        </button>
         <button type="button" class="star-btn"
                 aria-pressed="{{ 'true' if is_starred else 'false' }}"
+                aria-label="Star"
                 title="{{ 'Remove star' if is_starred else 'Star this listing' }}">
           <span class="star-on">★</span><span class="star-off">☆</span>
         </button>

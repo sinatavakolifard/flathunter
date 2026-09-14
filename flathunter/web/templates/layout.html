@@ -21,6 +21,7 @@
         <nav class="site-nav">
           <a href="/" {% if request.path == '/' or request.path == '/index' %}class="active"{% endif %}>Listings</a>
           <a href="/starred" {% if request.path == '/starred' %}class="active"{% endif %}>Starred</a>
+          <a href="/wunschliste" {% if request.path == '/wunschliste' %}class="active"{% endif %}>Wunschliste</a>
           <a href="/about" {% if request.path == '/about' %}class="active"{% endif %}>About</a>
           <a href="/resources" {% if request.path == '/resources' %}class="active"{% endif %}>Tenant rights</a>
         </nav>

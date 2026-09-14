@@ -423,9 +423,10 @@ a.pager-btn:hover {
   padding: 0 6px;
 }
 
-/* ---------- star ---------- */
+/* ---------- star and heart ---------- */
 
-.star-btn {
+.star-btn,
+.love-btn {
   width: 32px; height: 32px;
   display: grid; place-items: center;
   padding: 0;
@@ -439,10 +440,14 @@ a.pager-btn:hover {
   cursor: pointer;
   transition: background .15s ease, transform .15s ease, color .15s ease;
 }
-.star-btn:hover { background: rgba(12, 16, 22, .9); transform: scale(1.09); }
-.star-btn:active { transform: scale(.94); }
-.star-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.star-btn:disabled { cursor: default; }
+.star-btn:hover,
+.love-btn:hover { background: rgba(12, 16, 22, .9); transform: scale(1.09); }
+.star-btn:active,
+.love-btn:active { transform: scale(.94); }
+.star-btn:focus-visible,
+.love-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.star-btn:disabled,
+.love-btn:disabled { cursor: default; }
 
 .star-btn .star-on { display: none; }
 .star-btn .star-off { display: block; }
@@ -461,6 +466,30 @@ a.pager-btn:hover {
 /* A starred listing stays legible even once opened */
 .expose-card.starred.seen .expose-media img { opacity: .62; }
 .expose-card.starred.seen .expose-title { color: var(--text); font-weight: 600; }
+
+.love-btn .love-on { display: none; }
+.love-btn .love-off { display: block; }
+.expose-card.loved .love-btn {
+  color: #ff6b81;
+  background: rgba(12, 16, 22, .86);
+  border-color: rgba(255, 107, 129, .55);
+}
+.expose-card.loved .love-btn .love-on { display: block; }
+.expose-card.loved .love-btn .love-off { display: none; }
+
+.expose-card.loved {
+  border-color: rgba(255, 107, 129, .5);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255, 107, 129, .22);
+}
+/* Loved outranks starred when a listing is both */
+.expose-card.loved.starred {
+  border-color: rgba(255, 107, 129, .5);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255, 107, 129, .22),
+              0 0 0 2px rgba(255, 200, 61, .18);
+}
+/* A loved listing stays legible even once opened */
+.expose-card.loved.seen .expose-media img { opacity: .62; }
+.expose-card.loved.seen .expose-title { color: var(--text); font-weight: 600; }
 
 /* ---------- found-at line ---------- */
 

@@ -1,4 +1,5 @@
-// Listing interactions: marking seen on open, starring, relative last-run time.
+// Listing interactions: marking seen on open, starring, the Wunschliste,
+// and relative last-run time.
 
 (function () {
   "use strict";
@@ -57,34 +58,51 @@
       });
     }
 
-    var star = card.querySelector(".star-btn");
-    if (!star) { return; }
-    star.addEventListener("click", function (event) {
-      // The button sits over the card; don't let the click open the listing
-      event.preventDefault();
-      event.stopPropagation();
-      if (star.disabled) { return; }
-      star.disabled = true;
+    // The star and the heart behave identically apart from which list they
+    // write to, so they share one handler.
+    [
+      {
+        selector: ".star-btn", path: "/toggle_star", cls: "starred",
+        field: "starred", totalField: "starred_total", countId: "starred-count",
+        view: "starred", onTitle: "Remove star", offTitle: "Star this listing"
+      },
+      {
+        selector: ".love-btn", path: "/toggle_loved", cls: "loved",
+        field: "loved", totalField: "loved_total", countId: "loved-count",
+        view: "wunschliste", onTitle: "Remove from Wunschliste",
+        offTitle: "Add to Wunschliste"
+      }
+    ].forEach(function (spec) {
+      var button = card.querySelector(spec.selector);
+      if (!button) { return; }
+      button.addEventListener("click", function (event) {
+        // The button sits over the card; don't let the click open the listing
+        event.preventDefault();
+        event.stopPropagation();
+        if (button.disabled) { return; }
+        button.disabled = true;
 
-      var wasStarred = card.classList.contains("starred");
-      card.classList.toggle("starred");
-      star.setAttribute("aria-pressed", String(!wasStarred));
+        var wasOn = card.classList.contains(spec.cls);
+        card.classList.toggle(spec.cls);
+        button.setAttribute("aria-pressed", String(!wasOn));
 
-      post("/toggle_star", id).then(function (data) {
-        card.classList.toggle("starred", data.starred);
-        star.setAttribute("aria-pressed", String(data.starred));
-        star.title = data.starred ? "Remove star" : "Star this listing";
-        setCount("starred-count", data.starred_total);
-        // On the starred page, an unstarred card no longer belongs here
-        if (!data.starred && document.body.dataset.view === "starred") {
-          card.classList.add("removing");
-          setTimeout(function () { card.remove(); }, 220);
-        }
-      }).catch(function () {
-        card.classList.toggle("starred", wasStarred);
-        star.setAttribute("aria-pressed", String(wasStarred));
-      }).finally(function () {
-        star.disabled = false;
+        post(spec.path, id).then(function (data) {
+          var isOn = data[spec.field];
+          card.classList.toggle(spec.cls, isOn);
+          button.setAttribute("aria-pressed", String(isOn));
+          button.title = isOn ? spec.onTitle : spec.offTitle;
+          setCount(spec.countId, data[spec.totalField]);
+          // On that list's own page, a card just removed no longer belongs
+          if (!isOn && document.body.dataset.view === spec.view) {
+            card.classList.add("removing");
+            setTimeout(function () { card.remove(); }, 220);
+          }
+        }).catch(function () {
+          card.classList.toggle(spec.cls, wasOn);
+          button.setAttribute("aria-pressed", String(wasOn));
+        }).finally(function () {
+          button.disabled = false;
+        });
       });
     });
   });

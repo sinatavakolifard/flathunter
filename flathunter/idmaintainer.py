@@ -50,6 +50,10 @@ class IdMaintainer:
                                     (id INTEGER PRIMARY KEY, seen_at TIMESTAMP)')
                 cur.execute('CREATE TABLE IF NOT EXISTS starred_exposes \
                                     (id INTEGER PRIMARY KEY, starred_at TIMESTAMP)')
+                # The Wunschliste: kept apart from the star, so a listing can
+                # be shortlisted for a second look and loved independently.
+                cur.execute('CREATE TABLE IF NOT EXISTS loved_exposes \
+                                    (id INTEGER PRIMARY KEY, loved_at TIMESTAMP)')
                 self.threadlocal.connection.commit()
             except lite.Error as error:
                 logger.error("Error %s:", error.args[0])
@@ -231,6 +235,26 @@ class IdMaintainer:
         """Set of expose ids the user has starred"""
         cur = self.get_connection().cursor()
         cur.execute('SELECT id FROM starred_exposes')
+        return {row[0] for row in cur.fetchall()}
+
+    def toggle_loved(self, expose_id):
+        """Add a listing to the Wunschliste or take it off. Returns True if loved"""
+        expose_id = int(expose_id)
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT id FROM loved_exposes WHERE id = ?', (expose_id,))
+        if cur.fetchone() is not None:
+            cur.execute('DELETE FROM loved_exposes WHERE id = ?', (expose_id,))
+            self.get_connection().commit()
+            return False
+        cur.execute('INSERT INTO loved_exposes VALUES (?, ?)',
+                    (expose_id, datetime.datetime.now()))
+        self.get_connection().commit()
+        return True
+
+    def get_loved_ids(self):
+        """Set of expose ids on the Wunschliste"""
+        cur = self.get_connection().cursor()
+        cur.execute('SELECT id FROM loved_exposes')
         return {row[0] for row in cur.fetchall()}
 
     def save_settings_for_user(self, user_id, settings):

@@ -92,6 +92,14 @@ class WebHunter(Hunter):
         """Ids of listings the user has starred"""
         return self.id_watch.get_starred_ids()
 
+    def toggle_loved(self, expose_id):
+        """Add a listing to the Wunschliste or take it off. Returns True if loved"""
+        return self.id_watch.toggle_loved(expose_id)
+
+    def get_loved_ids(self):
+        """Ids of listings on the Wunschliste"""
+        return self.id_watch.get_loved_ids()
+
     def mark_seen(self, expose_id):
         """Record that the user opened a listing"""
         self.id_watch.mark_seen(expose_id)
