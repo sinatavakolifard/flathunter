@@ -133,3 +133,14 @@ def test_all_filters_can_be_loaded():
     hunter.set_filters_for_user(123, filter)
     hunter.set_filters_for_user(124, filter)
     assert id_watch.get_user_settings() == [ (123, { 'filters': filter }), (124, { 'filters': filter }) ]
+
+
+def test_saving_link_does_not_replace_resolved_address():
+    id_watch = IdMaintainer(":memory:")
+    expose = {'id': 1, 'crawler': 'WgGesucht', 'title': 'Flat',
+              'url': 'https://www.wg-gesucht.de/x.1.html',
+              'address': 'https://www.wg-gesucht.de/x.1.html'}
+    id_watch.save_expose(dict(expose, address='Neusser Strasse 40219 Düsseldorf'))
+    id_watch.save_expose(expose)
+    saved = id_watch.get_exposes_since(datetime.datetime.now() - datetime.timedelta(days=1))
+    assert saved[0]['address'] == 'Neusser Strasse 40219 Düsseldorf'

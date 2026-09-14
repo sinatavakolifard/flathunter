@@ -51,12 +51,14 @@ class Hunter:
         # after filtering and only when asked for. It is what fills in the
         # availability date for portals that omit it from search results.
         if self.config.crawl_expose_details():
-            # Save again afterwards: the first save happens before enrichment,
-            # so without this the availability date is fetched and thrown away.
-            # save_expose is an upsert that preserves the first-seen timestamp.
-            chain = chain.crawl_expose_details().save_all_exposes(self.id_watch)
+            chain = chain.crawl_expose_details()
 
+        # Save again afterwards: the first save happens before enrichment,
+        # so without this the availability date and the looked-up address
+        # would be fetched and thrown away. save_expose is an upsert that
+        # preserves the first-seen timestamp.
         processor_chain = chain.resolve_addresses() \
+                               .save_all_exposes(self.id_watch) \
                                .calculate_durations() \
                                .send_messages() \
                                .build()

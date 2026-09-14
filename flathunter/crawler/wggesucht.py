@@ -147,6 +147,21 @@ def parse_expose_element_to_details(row: Tag, crawler: str) -> Optional[Dict]:
     return details
 
 
+def parse_address(soup: BeautifulSoup, url: str = '') -> Optional[str]:
+    """Extract the address from an expose page.
+
+    The address is the link that jumps to the map further down the page.
+    WG-Gesucht renamed that anchor from '#mapContainer' to '#map_container',
+    so both are accepted.
+    """
+    a_element = soup.find("a", {"href": ["#map_container", "#mapContainer"]})
+    if not isinstance(a_element, Tag):
+        logger.debug("No address in response for URL: %s", url)
+        return None
+    address = ' '.join(a_element.get_text(' ').split())
+    return address or None
+
+
 def liste_attribute_filter(element: Union[Tag, str]) -> bool:
     """Return true for elements whose 'id' attribute starts with 'liste-' 
     and are not contained in the 'premium_user_extra_list' container"""
@@ -191,16 +206,7 @@ class WgGesucht(Crawler):
 
     def load_address(self, url) -> Optional[str]:
         """Extract address from expose itself"""
-        response = self.get_soup_from_url(url)
-        address_div = response.find('div', {"class": "col-sm-4 mb10"})
-        if not isinstance(address_div, Tag):
-            logger.debug("No address in response for URL: %s", url)
-            return None
-        a_element = address_div.find("a", {"href": "#mapContainer"})
-        if not isinstance(a_element, Tag):
-            logger.debug("No address in response for URL: %s", url)
-            return None
-        return ' '.join(a_element.text.strip().split())
+        return parse_address(self.get_soup_from_url(url), url)
 
     def get_soup_from_url(
             self,

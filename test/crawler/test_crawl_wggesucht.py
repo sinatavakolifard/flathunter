@@ -3,7 +3,7 @@ import unittest
 from typing import Dict
 from functools import reduce
 from bs4 import BeautifulSoup
-from flathunter.crawler.wggesucht import WgGesucht
+from flathunter.crawler.wggesucht import WgGesucht, parse_address
 from test.utils.config import StringConfig
 
 class WgGesuchtCrawlerTest(unittest.TestCase):
@@ -37,3 +37,30 @@ class WgGesuchtCrawlerTest(unittest.TestCase):
         entries = self.crawler.extract_data(soup)
         assert len(entries) == 20
 
+
+
+ADDRESS_PAGE = """
+<h2 class="section_panel_title mb10 m0">Adresse</h2>
+<a href="#map_container" style="color: #555;">
+    <span class="section_panel_detail">
+        Neusser Strasse
+        <br/>
+        40219 Düsseldorf Düsseldorf
+    </span>
+    <br/>
+</a>
+"""
+
+
+def test_parse_address():
+    soup = BeautifulSoup(ADDRESS_PAGE, 'lxml')
+    assert parse_address(soup) == "Neusser Strasse 40219 Düsseldorf Düsseldorf"
+
+
+def test_parse_address_old_anchor():
+    soup = BeautifulSoup(ADDRESS_PAGE.replace('#map_container', '#mapContainer'), 'lxml')
+    assert parse_address(soup) == "Neusser Strasse 40219 Düsseldorf Düsseldorf"
+
+
+def test_parse_address_missing():
+    assert parse_address(BeautifulSoup("<p>nothing</p>", 'lxml')) is None

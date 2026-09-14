@@ -1,13 +1,14 @@
 #!/usr/bin/env python
-"""Fill in availability dates for listings already in the database.
+"""Fill in availability dates and addresses for listings already in the database.
 
 A normal crawl only enriches listings that pass the filters, and listings
 already reported are filtered out before that happens - so anything collected
-before detail-crawling was enabled never gets a date. This walks the stored
-listings and fetches the missing ones.
+before detail-crawling was enabled never gets a date. Likewise, WG-Gesucht
+listings saved before addresses were stored only have their link as the
+address. This walks the stored listings and fetches the missing ones.
 
 Usage:
-    .venv/bin/python backfill_details.py [--limit N] [--dry-run] [--delay S]
+    .venv/bin/python backfill_details.py [--limit N] [--dry-run] [--delay S] [--addresses-only]
 """
 import argparse
 import json
@@ -28,6 +29,8 @@ def parse_args():
                         help='Stop after this many listings')
     parser.add_argument('--delay', '-d', type=float, default=0.7,
                         help='Seconds to wait between requests (default 0.7)')
+    parser.add_argument('--addresses-only', action='store_true',
+                        help='Only fill in missing addresses, skip dates')
     parser.add_argument('--dry-run', action='store_true',
                         help='Report what would be fetched, change nothing')
     return parser.parse_args()
@@ -55,45 +58,63 @@ def main():
     todo = []
     for details, crawler in rows:
         expose = json.loads(details)
-        if expose.get('from'):
-            continue
         searcher = searcher_for(config, expose.get('url', ''))
         if searcher is None:
             continue
         # Immowelt's expose pages are behind a captcha and its list results
         # already carry the date, so there is nothing to fetch there
-        if type(searcher).__name__ == 'Immowelt':
+        needs_date = not args.addresses_only and not expose.get('from') \
+            and type(searcher).__name__ != 'Immowelt'
+        address = expose.get('address')
+        needs_address = isinstance(address, str) and address.startswith('http')
+        if not (needs_date or needs_address):
             continue
-        todo.append((expose, searcher, crawler))
+        todo.append((expose, searcher, crawler, needs_date, needs_address))
 
     if args.limit:
         todo = todo[:args.limit]
 
-    print(f'{len(todo)} listings without an availability date to try')
+    print(f'{len(todo)} listings without an availability date or address to try')
     if args.dry_run:
-        for expose, _, crawler in todo[:20]:
-            print(f'  would fetch {crawler:16s} {expose.get("title", "")[:55]}')
+        for expose, _, crawler, needs_date, needs_address in todo[:20]:
+            missing = '+'.join(name for name, needed in
+                               (('date', needs_date), ('address', needs_address)) if needed)
+            print(f'  would fetch {crawler:16s} {missing:12s} {expose.get("title", "")[:45]}')
         return
 
-    filled = 0
-    for index, (expose, searcher, crawler) in enumerate(todo, start=1):
-        try:
-            updated = searcher.get_expose_details(dict(expose))
-        except Exception as error:  # pylint: disable=broad-except
-            logger.debug('Could not load details for %s: %s', expose.get('url'), error)
-            updated = None
-        if updated and updated.get('from'):
+    dates_filled = 0
+    addresses_filled = 0
+    for index, (expose, searcher, crawler, needs_date, needs_address) in \
+            enumerate(todo, start=1):
+        updated = dict(expose)
+        found = []
+        if needs_date:
+            try:
+                updated = searcher.get_expose_details(updated) or updated
+            except Exception as error:  # pylint: disable=broad-except
+                logger.debug('Could not load details for %s: %s', expose.get('url'), error)
+            if updated.get('from'):
+                dates_filled += 1
+                found.append(updated['from'])
+        if needs_address:
+            try:
+                address = searcher.load_address(expose['address'])
+            except Exception as error:  # pylint: disable=broad-except
+                logger.debug('Could not load address for %s: %s', expose.get('url'), error)
+                address = None
+            if address:
+                updated['address'] = address
+                addresses_filled += 1
+                found.append(address)
+        if found:
             id_watch.save_expose(updated)
-            filled += 1
-            print(f'  [{index}/{len(todo)}] {crawler:16s} {updated["from"]}  '
-                  f'{updated.get("title", "")[:45]}')
-        else:
-            print(f'  [{index}/{len(todo)}] {crawler:16s} --          '
-                  f'{expose.get("title", "")[:45]}')
+        print(f'  [{index}/{len(todo)}] {crawler:16s} '
+              f'{" | ".join(found) if found else "--":40s} {expose.get("title", "")[:35]}')
         time.sleep(args.delay)
 
-    print(f'\nFilled in {filled} of {len(todo)} listings.')
-    print('The rest do not state an availability date.')
+    print(f'\nFilled in {dates_filled} dates and {addresses_filled} addresses '
+          f'across {len(todo)} listings.')
+    print('The rest do not state them.')
 
 
 if __name__ == '__main__':

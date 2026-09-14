@@ -100,6 +100,15 @@ class IdMaintainer:
             for key, value in stored.items():
                 if details.get(key) in (None, '', [], {}):
                     details[key] = value
+            # Some portals (WG-Gesucht) only give the listing link as the
+            # address in search results; the real one is looked up later.
+            # Don't let a fresh search result replace a looked-up address.
+            fresh_address = details.get('address')
+            stored_address = stored.get('address')
+            if isinstance(fresh_address, str) and fresh_address.startswith('http') \
+                    and isinstance(stored_address, str) \
+                    and stored_address and not stored_address.startswith('http'):
+                details['address'] = stored_address
 
         cur.execute('INSERT INTO exposes(id, created, crawler, details) \
                      VALUES (?, ?, ?, ?) \

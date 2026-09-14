@@ -27,8 +27,12 @@ class AddressResolver(Processor):
             url = expose['address']
             for searcher in self.config.searchers():
                 if re.search(searcher.URL_PATTERN, url):
-                    expose['address'] = searcher.load_address(url)
-                    logger.debug("Loaded address %s for url %s", expose['address'], url)
+                    address = searcher.load_address(url)
+                    logger.debug("Loaded address %s for url %s", address, url)
+                    # Keep the link if the page had no address, so later
+                    # steps never see None
+                    if address:
+                        expose['address'] = address
                     break
         return expose
 
