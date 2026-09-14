@@ -355,6 +355,9 @@
         el.title = "First seen " + when.toLocaleString();
       });
     }
+    // Opening a popup can pan the map and redraw the list; keep the
+    // selection, and scroll to it again if it was only just made
+    markSelected(Date.now() - selectedAt < 1500);
   }
 
   // A star, heart or visit changes the pin as well as the card
@@ -365,20 +368,41 @@
     if (owner.kind === "point") { owner.marker.setIcon(pinIcon(owner)); }
   }
 
+  // The listings of the pin or district last clicked on the map. They stay
+  // marked in the list until something else is picked or the popup closes.
+  var selectedIds = {};
+  var selectedAt = 0;
+
   function revealInList(owner) {
-    // Only when the list scrolls beside the map; on phones it sits below
-    if (!window.matchMedia("(min-width: 900px)").matches) { return; }
-    var card = listEl.querySelector('[data-expose-id="' + owner.listings[0].id + '"]');
-    if (!card) { return; }
-    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    owner.listings.forEach(function (l) {
-      var el = listEl.querySelector('[data-expose-id="' + l.id + '"]');
-      if (!el) { return; }
-      el.classList.remove("flash");
-      void el.offsetWidth;
-      el.classList.add("flash");
-    });
+    selectedIds = {};
+    owner.listings.forEach(function (l) { selectedIds[l.id] = true; });
+    selectedAt = Date.now();
+    markSelected(true);
   }
+
+  function markSelected(scroll) {
+    var first = null;
+    listEl.querySelectorAll(".expose-card").forEach(function (card) {
+      var on = !!selectedIds[card.dataset.exposeId];
+      card.classList.toggle("selected", on);
+      if (on && !first) { first = card; }
+    });
+    // Only scroll when the list sits beside the map; on phones it is below
+    if (scroll && first && window.matchMedia("(min-width: 900px)").matches) {
+      var side = listEl.closest(".map-side");
+      var head = side.querySelector(".map-side-head");
+      var offset = first.getBoundingClientRect().top - side.getBoundingClientRect().top -
+                   head.offsetHeight - 8;
+      // A long smooth scroll gets cut short, so jump when the card is far away
+      side.scrollTo({ top: side.scrollTop + offset,
+                      behavior: Math.abs(offset) < 1500 ? "smooth" : "auto" });
+    }
+  }
+
+  map.on("popupclose", function () {
+    selectedIds = {};
+    markSelected(false);
+  });
 
   var renderTimer = null;
   map.on("moveend", function () {

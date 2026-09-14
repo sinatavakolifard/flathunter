@@ -601,7 +601,8 @@ body[data-view="map"] main.wrap { max-width: 1680px; }
   height: calc(100vh - 120px);
   min-height: 420px;
   overflow-y: auto;
-  padding-right: 4px;
+  /* Room so card borders and shadows at the edges are not cut off */
+  padding: 0 6px 0 4px;
 }
 .map-side-head {
   position: sticky;
@@ -664,10 +665,17 @@ body[data-view="map"] main.wrap { max-width: 1680px; }
 .map-district:hover { color: #e8590c; }
 .map-note { color: var(--text-faint); font-size: 13px; text-align: center; }
 
-.expose-card.flash { animation: map-flash 1.2s ease; }
-@keyframes map-flash {
-  0%, 40% { box-shadow: 0 0 0 3px var(--accent); }
-  100% { box-shadow: var(--shadow); }
+/* The listings of the pin or district picked on the map. The ring is drawn
+   inside the card, so the scrolling list cannot cut it off. */
+.expose-card.selected { border-color: var(--accent); }
+.expose-card.selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border: 3px solid var(--accent);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 /* pins and district labels */
