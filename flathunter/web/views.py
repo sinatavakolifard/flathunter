@@ -1,11 +1,12 @@
 """Main module for Web Interface"""
 import collections
 import json
+import os
 import hmac
 import hashlib
 from urllib import parse
 
-from flask import render_template, jsonify, request, session, redirect
+from flask import render_template, jsonify, request, session, redirect, url_for
 from http import HTTPStatus
 
 from flathunter import geo
@@ -13,6 +14,22 @@ from flathunter.web import app, log
 from flathunter.web.util import sanitize_float
 from flathunter.filter import FilterBuilder
 from flathunter.config import YamlConfig
+
+@app.context_processor
+def static_file_helpers():
+    """`static_url` adds the file's change time to its link
+
+    The site is served through Cloudflare, which keeps copies of scripts and
+    stylesheets, and phones cache them too. A link that changes with the file
+    makes everyone fetch the new version right after an update.
+    """
+    def static_url(filename):
+        try:
+            version = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+        except OSError:
+            version = 0
+        return url_for('static', filename=filename, v=version)
+    return {"static_url": static_url}
 
 class AuthenticationError(Exception):
     """Wrapper for authentication exceptions"""

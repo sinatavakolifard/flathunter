@@ -4,7 +4,7 @@
 {% block view %}map{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='leaflet/leaflet.css') }}">
+<link rel="stylesheet" href="{{ static_url('leaflet/leaflet.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -37,8 +37,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='leaflet/leaflet.js') }}" defer></script>
-<script src="{{ url_for('static', filename='map.js') }}" defer></script>
+<script src="{{ static_url('leaflet/leaflet.js') }}" defer></script>
+<script src="{{ static_url('map.js') }}" defer></script>
 {% endblock %}
 
 {% block footer_note %}Map data © OpenStreetMap contributors{% endblock %}

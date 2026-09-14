@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ static_url('style.css') }}">
     <link rel="apple-touch-icon" sizes="152x152" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
@@ -19,10 +19,16 @@
           <span class="brand-mark">⌂</span>
           Wohnungssuche
         </a>
-        <nav class="site-nav">
+        {# On phones the links do not fit in one row; this button opens them
+           as a dropdown instead #}
+        <button type="button" class="nav-toggle" aria-expanded="false"
+                aria-controls="site-nav" aria-label="Menu">
+          <span class="nav-toggle-bars" aria-hidden="true"></span>
+        </button>
+        <nav class="site-nav" id="site-nav">
           <a href="/" {% if request.path == '/' or request.path == '/index' %}class="active"{% endif %}>Listings</a>
           <a href="/map" {% if request.path == '/map' %}class="active"{% endif %}>Map</a>
-          <a href="/starred"{% if request.path == '/starred' %}class="active"{% endif %}>Starred</a>
+          <a href="/starred" {% if request.path == '/starred' %}class="active"{% endif %}>Starred</a>
           <a href="/wunschliste" {% if request.path == '/wunschliste' %}class="active"{% endif %}>Wunschliste</a>
           <a href="/about" {% if request.path == '/about' %}class="active"{% endif %}>About</a>
           <a href="/resources" {% if request.path == '/resources' %}class="active"{% endif %}>Tenant rights</a>
@@ -43,7 +49,7 @@
         <span>{% block footer_note %}{% endblock %}</span>
       </div>
     </footer>
-    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+    <script src="{{ static_url('app.js') }}" defer></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

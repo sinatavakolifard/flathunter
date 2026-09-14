@@ -135,6 +135,25 @@
 
   window.Wohnungssuche = { bindCard: bindCard, relative: relative };
 
+  // Menu button on small screens
+  var header = document.querySelector(".site-header");
+  var navToggle = header && header.querySelector(".nav-toggle");
+  if (navToggle) {
+    var setMenu = function (open) {
+      header.classList.toggle("nav-open", open);
+      navToggle.setAttribute("aria-expanded", String(open));
+    };
+    navToggle.addEventListener("click", function () {
+      setMenu(!header.classList.contains("nav-open"));
+    });
+    document.addEventListener("click", function (event) {
+      if (!header.contains(event.target)) { setMenu(false); }
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") { setMenu(false); }
+    });
+  }
+
   // Show the last check as a relative time, refreshed in place
   var lastRun = document.getElementById("last-run");
   if (lastRun && lastRun.dataset.ts) {
