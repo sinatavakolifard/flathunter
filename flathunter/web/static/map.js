@@ -11,6 +11,11 @@
 
   var DUESSELDORF = { lat: 51.2277, lng: 6.7735, zoom: 12 };
   var VIEW_KEY = "wohnungssuche.map-view";
+  var FILTERS_KEY = "wohnungssuche.map-filters";
+  var FIELDS = ["rooms", "price", "size"];
+  // How far one nudge of a slider moves it
+  var FILTER_STEPS = { rooms: 0.5, price: 50, size: 5 };
+  var UNITS = { rooms: "", price: " €", size: " m²" };
   var AREA_STYLE = {
     color: "#e8590c", weight: 1.5, dashArray: "5 4",
     fillColor: "#fd7e14", fillOpacity: 0.14
@@ -24,6 +29,9 @@
   var countEl = document.getElementById("in-view-count");
   var hiddenEl = document.getElementById("hidden-note");
   var statusEl = document.getElementById("map-status");
+  var filterBarEl = document.getElementById("map-filters");
+  var filterCountEl = document.getElementById("filter-count");
+  var filterResetEl = document.getElementById("filter-reset");
   var source = mapEl.dataset.source;
 
   // ---------- helpers ----------
@@ -59,6 +67,62 @@
       }
     } catch (e) { /* no storage, use the default */ }
     return null;
+  }
+
+  // The values are written for people, not for machines: "2,5 Zimmer",
+  // "1.300 €Kaltmiete", "48,8 m²". German numbers, so a dot separates
+  // thousands and a comma the decimals. A few listings have a whole
+  // sentence in the price field - those count as "not known".
+  function parseNumber(value) {
+    var text = String(value == null ? "" : value)
+      .replace(/Kaltmiete|Warmmiete|Kalt|Warm|Miete|Zimmer|Zi\.?|EUR|€|m²|m2|qm/gi, "")
+      .replace(/\s/g, "");
+    if (!/^\d+([.,]\d+)*$/.test(text)) { return null; }
+    // A lone dot with one or two digits behind it is a decimal point, not a
+    // thousands separator: "48.8" is a size, "1.300" a price
+    text = /^\d+\.\d{1,2}$/.test(text)
+      ? text : text.replace(/\./g, "").replace(",", ".");
+    var number = parseFloat(text);
+    return isFinite(number) && number > 0 ? number : null;
+  }
+
+  function emptyFilters() {
+    var empty = {};
+    FIELDS.forEach(function (field) { empty[field] = { min: null, max: null }; });
+    return empty;
+  }
+
+  function bound(value) {
+    return isFinite(value) && value !== null ? Number(value) : null;
+  }
+
+  function loadFilters() {
+    var loaded = emptyFilters();
+    try {
+      var saved = JSON.parse(localStorage.getItem(FILTERS_KEY)) || {};
+      FIELDS.forEach(function (field) {
+        if (saved[field]) {
+          loaded[field] = { min: bound(saved[field].min), max: bound(saved[field].max) };
+        }
+      });
+    } catch (e) { /* no storage, show everything */ }
+    return loaded;
+  }
+
+  function saveFilters() {
+    try { localStorage.setItem(FILTERS_KEY, JSON.stringify(filters)); } catch (e) { /* not important */ }
+  }
+
+  function anyFilterSet() {
+    return FIELDS.some(function (field) {
+      return filters[field].min !== null || filters[field].max !== null;
+    });
+  }
+
+  function formatNumber(field, value, bare) {
+    var text = field === "rooms"
+      ? String(value).replace(".", ",") : value.toLocaleString("de-DE");
+    return bare ? text : text + UNITS[field];
   }
 
   function saveView() {
@@ -162,6 +226,9 @@
   var areas = [];
   var owners = {};
   var lastPayload = null;
+  var lastData = null;
+  // The ranges picked in the filter bar; null ends are open
+  var filters = loadFilters();
 
   function pinIcon(point) {
     var listings = point.listings;
@@ -383,7 +450,9 @@
       html += '<p class="map-note">Showing the first ' + MAX_CARDS + ". Zoom in to see the rest.</p>";
     }
     if (!exactInView.length && !areasInView.length) {
-      html = '<div class="empty"><strong>Nothing here</strong>Move or zoom out the map to find listings.</div>';
+      html = anyFilterSet() && !points.length && !areas.length
+        ? '<div class="empty"><strong>No matches</strong>No listings fit the filters. Widen them or press Reset.</div>'
+        : '<div class="empty"><strong>Nothing here</strong>Move or zoom out the map to find listings.</div>';
     }
     listEl.innerHTML = html;
 
@@ -465,6 +534,168 @@
     renderTimer = setTimeout(renderList, 120);
   });
 
+  // ---------- filters ----------
+
+  // A listing whose value is unknown drops out as soon as that field is
+  // filtered - there is no way to tell whether it would fit
+  function matchesFilters(listing) {
+    return FIELDS.every(function (field) {
+      var range = filters[field];
+      if (range.min === null && range.max === null) { return true; }
+      var value = parseNumber(listing[field]);
+      return value !== null &&
+        (range.min === null || value >= range.min) &&
+        (range.max === null || value <= range.max);
+    });
+  }
+
+  // A copy of the data with only the matching listings; districts left
+  // without any listing are dropped
+  function filtered(data) {
+    return {
+      exact: data.exact.filter(matchesFilters),
+      areas: data.areas.map(function (area) {
+        return L.extend({}, area, { listings: area.listings.filter(matchesFilters) });
+      }).filter(function (area) { return area.listings.length; })
+    };
+  }
+
+  function allListings(data) {
+    var all = data.exact.slice();
+    data.areas.forEach(function (area) { all = all.concat(area.listings); });
+    return all;
+  }
+
+  // How far each slider can go: the listings' own smallest and largest
+  // value, widened to a round step so the ends are readable numbers
+  function sliderLimits(field, values) {
+    var step = FILTER_STEPS[field];
+    // Never start at zero: one listing priced at 1 € would otherwise waste
+    // most of the track on prices nothing is listed at
+    var lo = Math.max(step, Math.floor(Math.min.apply(null, values) / step) * step);
+    var hi = Math.ceil(Math.max.apply(null, values) / step) * step;
+    // One step of room either way, so a single-value field still has a track
+    if (hi <= lo) { hi = lo + step; }
+    return { lo: Math.round(lo * 10) / 10, hi: Math.round(hi * 10) / 10, step: step };
+  }
+
+  // The text beside a slider: both ends, one end, or nothing set
+  function rangeText(field) {
+    var range = filters[field];
+    if (range.min === null && range.max === null) { return "any"; }
+    if (range.max === null) { return "from " + formatNumber(field, range.min); }
+    if (range.min === null) { return "up to " + formatNumber(field, range.max); }
+    // The unit belongs at the end only: "600 – 1.200 €"
+    return formatNumber(field, range.min, true) + " – " + formatNumber(field, range.max);
+  }
+
+  // What the handles are sitting on, with an open end resting at the limit
+  function handleValues(field, limits) {
+    var range = filters[field];
+    return {
+      min: range.min === null ? limits.lo : Math.min(Math.max(range.min, limits.lo), limits.hi),
+      max: range.max === null ? limits.hi : Math.min(Math.max(range.max, limits.lo), limits.hi)
+    };
+  }
+
+  var limitsByField = {};
+
+  function renderFilterBar() {
+    if (lastData) {
+      var all = allListings(lastData);
+      FIELDS.forEach(function (field) {
+        var values = all.map(function (l) { return parseNumber(l[field]); })
+          .filter(function (v) { return v !== null; });
+        limitsByField[field] = values.length ? sliderLimits(field, values) : null;
+      });
+    }
+    FIELDS.forEach(function (field) {
+      var limits = limitsByField[field];
+      var rangeEl = filterBarEl.querySelector('.range[data-field="' + field + '"]');
+      var valueEl = filterBarEl.querySelector('.range-value[data-field="' + field + '"]');
+      var inputs = rangeEl.querySelectorAll("input");
+      var at = limits ? handleValues(field, limits) : { min: 0, max: 1 };
+      inputs.forEach(function (input) {
+        input.disabled = !limits;
+        input.min = limits ? limits.lo : 0;
+        input.max = limits ? limits.hi : 1;
+        input.step = limits ? limits.step : 1;
+        input.value = at[input.dataset.bound];
+      });
+      // The handle that can still move must sit on top where they meet
+      var span = limits ? limits.hi - limits.lo : 1;
+      var middle = limits ? limits.lo + span / 2 : 0;
+      inputs[0].style.zIndex = at.min > middle ? 3 : 2;
+      inputs[1].style.zIndex = at.min > middle ? 2 : 3;
+      var fill = rangeEl.querySelector(".range-fill");
+      fill.style.left = (limits ? (at.min - limits.lo) / span * 100 : 0) + "%";
+      fill.style.right = (limits ? (limits.hi - at.max) / span * 100 : 0) + "%";
+      var isSet = filters[field].min !== null || filters[field].max !== null;
+      // Not "empty" - that class is the big dashed box of the empty list
+      rangeEl.classList.toggle("range-open", !isSet);
+      valueEl.classList.toggle("set", isSet);
+      valueEl.textContent = limits ? rangeText(field) : "…";
+    });
+    filterResetEl.hidden = !anyFilterSet();
+    if (lastData) {
+      var listings = allListings(lastData);
+      filterCountEl.textContent = anyFilterSet()
+        ? listings.filter(matchesFilters).length + " of " + listings.length + " match"
+        : listings.length + " listings";
+    } else {
+      filterCountEl.textContent = "";
+    }
+  }
+
+  function applyFilters() {
+    saveFilters();
+    renderFilterBar();
+    if (lastData) {
+      // Redrawing removes the pin a popup may be attached to
+      map.closePopup();
+      draw(filtered(lastData));
+      renderList();
+    }
+  }
+
+  // While a handle is being dragged the bar keeps up with it; the map and
+  // the list follow a moment later, so dragging stays smooth
+  var dragTimer = null;
+
+  filterBarEl.addEventListener("input", function (event) {
+    var input = event.target.closest(".range input");
+    if (!input) { return; }
+    var field = input.dataset.field;
+    var limits = limitsByField[field];
+    if (!limits) { return; }
+    var rangeEl = input.parentNode;
+    var inputs = rangeEl.querySelectorAll("input");
+    var low = Number(inputs[0].value);
+    var high = Number(inputs[1].value);
+    // The handles push against each other rather than swapping over
+    if (low > high) {
+      if (input.dataset.bound === "min") { low = high; } else { high = low; }
+    }
+    // A handle resting at its end of the track means "no limit here", so
+    // listings with no value of their own are not thrown away
+    filters[field] = {
+      min: low <= limits.lo ? null : low,
+      max: high >= limits.hi ? null : high
+    };
+    renderFilterBar();
+    clearTimeout(dragTimer);
+    dragTimer = setTimeout(applyFilters, 140);
+  });
+
+  filterResetEl.addEventListener("click", function () {
+    filters = emptyFilters();
+    applyFilters();
+  });
+
+  renderFilterBar();
+  // The filter bar takes up room of its own, so the map moves down
+  resized();
+
   // ---------- data ----------
 
   function showStatus(data) {
@@ -498,7 +729,9 @@
         // Redrawing closes open popups, so only do it when something changed
         if (text !== lastPayload) {
           lastPayload = text;
-          draw(data);
+          lastData = data;
+          renderFilterBar();
+          draw(filtered(data));
           if (first && !savedView) {
             var all = points.map(function (p) { return [p.lat, p.lon]; });
             areas.forEach(function (a) { all.push([a.lat, a.lon]); });

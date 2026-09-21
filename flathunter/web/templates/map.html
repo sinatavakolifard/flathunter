@@ -16,6 +16,24 @@
 
 {% include "_filters.html" %}
 
+<div class="map-filters" id="map-filters">
+  {% for f in [("rooms", "Rooms"), ("price", "Price"), ("size", "Size")] %}
+    <div class="map-filter" role="group" aria-labelledby="{{ f[0] }}-label">
+      <span class="map-filter-label" id="{{ f[0] }}-label">{{ f[1] }}</span>
+      <div class="range" data-field="{{ f[0] }}">
+        <div class="range-track"><div class="range-fill"></div></div>
+        <input type="range" data-field="{{ f[0] }}" data-bound="min" disabled
+               aria-label="Least {{ f[1]|lower }}">
+        <input type="range" data-field="{{ f[0] }}" data-bound="max" disabled
+               aria-label="Most {{ f[1]|lower }}">
+      </div>
+      <output class="range-value" data-field="{{ f[0] }}">any</output>
+    </div>
+  {% endfor %}
+  <button type="button" class="filter-reset" id="filter-reset" hidden>Reset</button>
+  <span class="filter-count" id="filter-count"></span>
+</div>
+
 <div class="map-status" id="map-status" hidden></div>
 
 <div class="map-layout">
