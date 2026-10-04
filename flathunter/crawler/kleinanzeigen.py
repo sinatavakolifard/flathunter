@@ -25,12 +25,59 @@ class Kleinanzeigen(Crawler):
         "Dezember": "12"
     }
 
-    def get_expose_details(self, expose):
-        """Fetch the availability date from the listing page
+    # For the big cities the listing page names the city before the district
+    # ("40476 Düsseldorf - Derendorf"); for everywhere else it names the
+    # federal state instead ("41061 Nordrhein-Westfalen - Mönchengladbach"),
+    # which is not part of an address and only confuses the geocoder.
+    STATES = {
+        "Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen",
+        "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen",
+        "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen",
+        "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen"
+    }
 
-        Kleinanzeigen writes it as "Verfügbar ab August 2026" - a month and
-        year, no day - and only when the landlord filled the field in, which
-        is a minority of listings. Costs one request per listing.
+    @staticmethod
+    def _text_of(soup, element_id):
+        """The cleaned-up text of an element, or "" if the page has none"""
+        element = soup.find(id=element_id)
+        if not isinstance(element, Tag):
+            return ""
+        text = element.get_text(" ", strip=True).replace("\xa0", " ")
+        return " ".join(text.split()).strip(" ,")
+
+    def _address_from_page(self, soup):
+        """The address the listing page gives, as complete as it gets
+
+        The page keeps the street in #street-address ("Bülowstraße 7,") next
+        to the area in #viewad-locality ("40476 Düsseldorf - Derendorf").
+        About half the listings name a street; the search results never show
+        one, so this is the only place to pick it up.
+
+        Returned comma-separated, "Bülowstraße 7, 40476 Düsseldorf,
+        Derendorf" - the shape flathunter.geo reads into a street query plus
+        a district, so these listings get an exact pin on the map instead of
+        a district blob. Returns "" for a page with no address at all (an
+        expired listing, say), so callers keep what they already have.
+        """
+        locality = self._text_of(soup, "viewad-locality")
+        if not locality:
+            return ""
+        street = self._text_of(soup, "street-address")
+        city, _, district = (part.strip() for part in locality.partition(" - "))
+        plz, _, region = city.partition(" ")
+        if district and region in self.STATES:
+            # Not a city name - keep the postcode next to the place instead
+            city, district = f"{plz} {district}", ""
+        return ", ".join(part for part in (street, city, district) if part)
+
+    def get_expose_details(self, expose):
+        """Fetch the availability date and the exact address
+
+        Both sit on the listing page, so the one request covers them.
+
+        Kleinanzeigen writes the date as "Verfügbar ab August 2026" - a month
+        and year, no day - and only when the landlord filled the field in,
+        which is a minority of listings.
 
         The previous implementation anchored its date regex at the start of
         the text, where the label sits, so it never matched, and then filled
@@ -45,6 +92,9 @@ class Kleinanzeigen(Crawler):
             if match is not None and match[1] in self.MONTHS:
                 expose['from'] = f"01.{self.MONTHS[match[1]]}.{match[2]}"
             break
+        address = self._address_from_page(soup)
+        if address:
+            expose['address'] = address
         return expose
 
     def _parse_result(self, item):
@@ -122,14 +172,4 @@ class Kleinanzeigen(Crawler):
 
     def load_address(self, url):
         """Extract address from expose itself"""
-        expose_soup = self.get_page(url)
-        street_raw = ""
-        street_el = expose_soup.find(id="street-address")
-        if isinstance(street_el, Tag):
-            street_raw = street_el.text
-        address_raw = ""
-        address_el = expose_soup.find(id="viewad-locality")
-        if isinstance(address_el, Tag):
-            address_raw = address_el.text
-
-        return address_raw.strip().replace("\n", "") + " " + street_raw.strip()
+        return self._address_from_page(self.get_page(url))
