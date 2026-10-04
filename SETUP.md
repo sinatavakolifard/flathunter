@@ -9,6 +9,7 @@ Fork of [flathunters/flathunter](https://github.com/flathunters/flathunter).
 ./run.sh              # normal run, loops forever
 ./run.sh -hb day      # also send a daily "still alive" heartbeat
 ./web.sh              # local web interface at http://127.0.0.1:8080
+./tunnel.sh           # publish that interface at https://flathunter.sinacodes.de
 ```
 
 `run.sh` does the searching and notifying. `web.sh` is a separate, read-only
@@ -188,6 +189,219 @@ for (d,) in sqlite3.connect('processed_ids.db').execute('select details from exp
 
 Multiple notifiers can be active at once — `notifiers:` is a list.
 
+## Publishing the web interface (Cloudflare tunnel)
+
+`./tunnel.sh` makes the local web interface reachable at
+https://flathunter.sinacodes.de, from a phone or anywhere else.
+
+### How it works
+
+- `./web.sh` serves the page on this computer only, at `127.0.0.1:8080`.
+- `./tunnel.sh` runs `cloudflared`, which opens an outgoing connection to
+  Cloudflare. Visitors of `flathunter.sinacodes.de` reach Cloudflare, and
+  Cloudflare passes them down that connection to port 8080.
+- No router ports are opened and the home IP address stays hidden. If the
+  computer is off, or either script is stopped, the site is down.
+
+Everything the tunnel needs lives in `~/.cloudflared/`:
+
+| File | What it is |
+|---|---|
+| `flathunter.yml` | Which tunnel to run and where to send visitors |
+| `<tunnel-id>.json` | The tunnel's password. Keep it secret, never commit it |
+| `cert.pem` | Your Cloudflare account login. Only needed to create, delete or route tunnels, not to run one |
+| `config.yml` + another `.json` | The separate easy-german tunnel. Leave them alone |
+
+`flathunter.yml` looks like this:
+
+```yaml
+tunnel: <tunnel-id>
+credentials-file: /Users/<user>/.cloudflared/<tunnel-id>.json
+
+ingress:
+  - hostname: flathunter.sinacodes.de
+    service: http://localhost:8080
+  # Anything else hitting this tunnel gets a 404 rather than being proxied.
+  - service: http_status:404
+```
+
+The tunnel is called `flathunter` in Cloudflare. `tunnel.sh` runs it with
+`cloudflared tunnel --config ~/.cloudflared/flathunter.yml run flathunter`.
+It is kept separate from the easy-german tunnel, so restarting one site never
+takes the other down.
+
+### Setting it up on another computer (Linux or Mac)
+
+**1. Get flathunter running there first.** Clone the repo, create `.venv`,
+and copy `config.yaml` over. Copy `processed_ids.db` too if you want the
+listings, stars and seen marks you already have. Check that `./web.sh` works
+and http://127.0.0.1:8080 opens before touching the tunnel.
+
+**2. Install `cloudflared`.**
+
+Mac:
+
+```bash
+brew install cloudflared
+```
+
+Linux (Debian/Ubuntu):
+
+```bash
+sudo mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt-get update && sudo apt-get install cloudflared
+```
+
+Other Linux versions: Cloudflare's download page has an `.rpm` package and a
+single-file binary. Check the install with `cloudflared --version`.
+
+**3. Connect the tunnel.** Pick one of the two options below.
+
+#### Option A: Move the existing tunnel (simplest)
+
+Same tunnel, same address, just running on a different computer.
+
+1. Copy `~/.cloudflared/flathunter.yml` and `~/.cloudflared/<tunnel-id>.json`
+   from the old computer to `~/.cloudflared/` on the new one (`scp`, USB
+   stick, ...). The tunnel id is in the `tunnel:` line of `flathunter.yml`.
+2. On the new computer, fix the `credentials-file:` line in `flathunter.yml`
+   to the new home folder. It must be a full path:
+   - Mac: `/Users/<user>/.cloudflared/<tunnel-id>.json`
+   - Linux: `/home/<user>/.cloudflared/<tunnel-id>.json`
+3. **Stop the tunnel on the old computer.** If both run it at once,
+   Cloudflare splits visitors between them, and you see two different sets of
+   listings at random.
+4. Run `./web.sh` in one terminal and `./tunnel.sh` in another.
+
+No login and no `cert.pem` are needed for this.
+
+#### Option B: Create a new tunnel
+
+For when the files cannot be copied, or the old computer should keep its own
+tunnel for something else.
+
+```bash
+cloudflared tunnel login                  # opens a browser; pick sinacodes.de, saves cert.pem
+cloudflared tunnel create flathunter-2    # prints the new tunnel id, saves <new-id>.json
+cloudflared tunnel route dns --overwrite-dns flathunter-2 flathunter.sinacodes.de
+```
+
+The name has to be new because `flathunter` already exists in the account.
+`--overwrite-dns` moves the address from the old tunnel to the new one, so
+the old computer stops getting visitors.
+
+Then write `~/.cloudflared/flathunter.yml` as shown above, with the new id in
+`tunnel:` and `credentials-file:`. In `tunnel.sh`, change the last word from
+`flathunter` to `flathunter-2`.
+
+Once the new one works, delete the old tunnel from any computer that has
+`cert.pem`:
+
+```bash
+cloudflared tunnel delete flathunter
+```
+
+**4. Check it.**
+
+```bash
+cloudflared tunnel list                   # the tunnel should show connections
+curl -I https://flathunter.sinacodes.de   # should answer, not 502
+```
+
+A **502** means the tunnel is up but `./web.sh` is not running. A **1033**
+error page means no `cloudflared` is connected for that address.
+
+### Keeping it running after a reboot
+
+The scripts only run while their terminal is open. To start them on their
+own, run them as services. The examples assume the repo is at `~/flathunter`;
+change the paths if not. `./run.sh` can be set up the same way.
+
+Do not use `cloudflared service install` for this. It reads
+`~/.cloudflared/config.yml`, which is the easy-german tunnel.
+
+**Linux (systemd).** Create `~/.config/systemd/user/flathunter-web.service`:
+
+```ini
+[Unit]
+Description=flathunter web interface
+
+[Service]
+ExecStart=%h/flathunter/web.sh
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+and `~/.config/systemd/user/flathunter-tunnel.service`:
+
+```ini
+[Unit]
+Description=flathunter Cloudflare tunnel
+After=flathunter-web.service network-online.target
+
+[Service]
+ExecStart=%h/flathunter/tunnel.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+```
+
+Then:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now flathunter-web flathunter-tunnel
+sudo loginctl enable-linger "$USER"       # keep them running when logged out
+journalctl --user -u flathunter-tunnel -f # watch the tunnel's log
+```
+
+**Mac (launchd).** Create
+`~/Library/LaunchAgents/de.sinacodes.flathunter-tunnel.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>de.sinacodes.flathunter-tunnel</string>
+    <key>ProgramArguments</key>
+    <array><string>/Users/USER/flathunter/tunnel.sh</string></array>
+    <!-- launchd does not see Homebrew's folder unless told -->
+    <key>EnvironmentVariables</key>
+    <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>StandardErrorPath</key><string>/tmp/flathunter-tunnel.log</string>
+</dict>
+</plist>
+```
+
+Replace `USER` with your user name. Make a second one for `web.sh` the same
+way (another label and file name). Start each with:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.sinacodes.flathunter-tunnel.plist
+```
+
+and stop it with `launchctl bootout` and the same arguments. The Mac must not
+go to sleep for the site to stay up.
+
+### Who can see the page
+
+Anyone who knows the address, unless Cloudflare Access is set up for it in
+the Cloudflare dashboard (Zero Trust → Access → Applications). The web
+interface has no login of its own that guards the listings. It shows the
+listings you collected and lets visitors star them and mark them seen, so
+putting Access in front of it (for example a code sent to your email) is
+worth doing. It is
+free for a few users.
+
 ## Which portals are active
 
 | Portal | Status | Notes |
@@ -283,7 +497,9 @@ flathunter can call it directly.
   default.
 - **`main.py` bound to a public interface** — running it locally is fine (see
   `./web.sh`, which binds to 127.0.0.1 only), but it is built for a multi-user
-  hosted service with Telegram-login auth. Don't expose it to a network.
+  hosted service with Telegram-login auth. Don't expose it to a network
+  directly; if you publish it through the tunnel, see "Who can see the page"
+  above.
 
 ## Staying up to date
 
